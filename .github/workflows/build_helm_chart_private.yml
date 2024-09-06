@@ -1,0 +1,123 @@
+name: template-build-helm-chart-private
+
+on:
+  workflow_call:
+    inputs:
+      chart_dir:
+        description: "chart folder"
+        required: true
+        type: string
+        default: charts
+      chart_repo:
+        description: "chart repo (private)"
+        required: false
+        type: string
+        default: jr200/helm-charts-private
+      chart_repo_branch:
+        description: chart repo branch
+        required: false
+        type: string
+        default: main
+    secrets:
+      # create a github fine-grained personal access token
+      # - for repo: helm-charts
+      # - with permissions: contents=read+write, metadata=read
+      # then copy that token into a repository secret: CHARTS_WRITE_TOKEN
+      charts_write_token:
+        required: true
+        description: allow writing to charts repo
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout Helm chart repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.chart_repo }}
+          path: .helm-chart-repo
+          token: ${{ secrets.charts_write_token }}
+          fetch-depth: 0
+          persist-credentials: true
+          ref: ${{ inputs.chart_repo_branch }}
+
+      - name: Install chart releaser
+        run: |
+          set -e
+          arch="$(dpkg --print-architecture)"
+          curl -s https://api.github.com/repos/helm/chart-releaser/releases/latest \
+          | yq --indent 0 --no-colors --input-format json --unwrapScalar \
+            ".assets[] | select(.name | test("\""^chart-releaser_.+_linux_${arch}\.tar\.gz$"\"")) | .browser_download_url" \
+          | xargs curl -SsL \
+          | tar zxf - -C /usr/local/bin
+
+      - name: Install yq - portable yaml processor
+        uses: mikefarah/yq@v4.35.1
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: search code repo for charts folders
+        id: collect-charts
+        run: |
+          set -e
+          find -L ${{ inputs.chart_dir }} -mindepth 2 -maxdepth 2 -type f \( -name 'Chart.yaml' -o -name 'Chart.yml' \) -exec dirname "{}" \; \
+          | sort -u \
+          | sed -E 's/^/- /' \
+          | yq --no-colors --indent 0 --output-format json '.' \
+          | sed -E 's/^/found_charts=/' >> $GITHUB_OUTPUT
+
+      - name: Helm Deps
+        run: |
+          set -ex
+          echo '${{ steps.collect-charts.outputs.found_charts }}' \
+          | yq --indent 0 --no-colors --input-format json --unwrapScalar '.[]' \
+          | while read -r dir; do
+              helm dependency update $dir;
+              if [ -f "$dir/Chart.lock" ]; then
+                yq --indent 0 \
+                  '.dependencies | map(["helm", "repo", "add", .name, .repository] | join(" ")) | .[]' \
+                  "$dir/Chart.lock" \
+                | sh --;
+              fi
+            done
+
+      - name: Package charts
+        id: package
+        run: |
+          set -ex
+          PACKAGES=.cr-release-packages
+          echo '${{ steps.collect-charts.outputs.found_charts }}' \
+          | yq --indent 0 --no-colors --input-format json --unwrapScalar '.[]' \
+          | xargs -d$'\n' cr package --package-path "$PACKAGES"
+          echo "dir=${PACKAGES}" >> $GITHUB_OUTPUT
+
+      - name: Helm Push
+        env:
+          GITHUB_TOKEN: ${{ secrets.charts_write_token }}
+        working-directory: .helm-chart-repo
+        run: |
+          set -ex
+          git config --local user.name "$GITHUB_ACTOR"
+          git config --local user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git config --list
+
+          mkdir -p ./charts || echo ok
+          CHART_PACKAGE_PATH=`find -L ../${{ inputs.chart_dir }} -type f -name '*.tgz' -print0 | xargs -0 ls -t | head -n 1`
+          CHART_PACKAGE_NAME=`basename ${CHART_PACKAGE_PATH}`
+
+          echo chart_package_path=$CHART_PACKAGE_PATH
+          echo chart_package_name=$CHART_PACKAGE_NAME
+
+          cp ${CHART_PACKAGE_PATH} ./charts/${CHART_PACKAGE_NAME}
+
+          helm repo index .
+
+          git add ./index.yaml ./charts
+          git commit -m "$CHART_PACKAGE_NAME"
+          git push origin ${{ inputs.chart_repo_branch }}

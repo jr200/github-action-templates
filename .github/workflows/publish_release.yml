@@ -1,0 +1,29 @@
+name: template-publish-release
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "release-version"
+        required: true
+        type: string
+    secrets:
+      token:
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: publish release
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.token }}
+          generateReleaseNotes: true
+          allowUpdates: true
+          tag: ${{ inputs.tag }}

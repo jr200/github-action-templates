@@ -1,0 +1,188 @@
+name: template-build-docker-image-multiplatform
+
+on:
+  workflow_call:
+    inputs:
+      registry_name:
+        description: docker-registry-name
+        required: true
+        type: string
+        default: ghcr.io
+      image_name:
+        description: docker-image-name
+        required: true
+        type: string
+      tag:
+        description: docker-image-tag
+        required: true
+        type: string
+      platforms:
+        description: platform-filter-json
+        required: true
+        type: string
+    secrets:
+      registry_username:
+        required: true
+      registry_token:
+        required: true
+
+env:
+  IMAGE_NAME: ${{ inputs.image_name }}
+  REGISTRY_IMAGE: ${{ inputs.registry_name }}/${{ github.repository }}
+  DEFAULT_UNIVERSE: |-
+    [
+      {"platform": "linux/amd64", "os": "linux", "build-os": "ubuntu-latest"},
+      {"platform": "linux/arm64", "os": "linux", "build-os": "ubuntu-latest"}
+    ]
+
+jobs:
+  setup-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.create-matrix.outputs.matrix }}
+    steps:
+      - name: Determine Platforms
+        id: create-matrix
+        run: |
+          platforms='${{ inputs.platforms }}'
+          default_universe='${{ env.DEFAULT_UNIVERSE }}'
+
+          echo "input filtered_platforms: $platforms"
+          echo "input default_universe: $default_universe"
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "filtering matrix using workflow_dispatch arguments"
+            result_matrix=$(echo "$default_universe" | jq -c --argjson platforms "$platforms" '[.[] | select($platforms[] == .platform)]')
+          else
+            echo "matrix filtering skipped"
+            result_matrix=$(echo "$default_universe" | jq -c)
+          fi
+
+          echo set-matrix: $result_matrix
+          echo "matrix=$result_matrix" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build ${{ matrix.platform }} Image
+    needs: setup-matrix
+    runs-on: ${{ matrix.build-os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log into registry ${{ inputs.registry_name }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry_name }}
+          username: ${{ secrets.registry_username }}
+          password: ${{ secrets.registry_token }}
+
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          file: docker/Dockerfile
+          context: .
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build-and-push.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Merge platform specific Docker image into multi platform image
+    runs-on: ubuntu-latest
+    needs:
+      - build
+
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry_name }}
+          username: ${{ secrets.registry_username }}
+          password: ${{ secrets.registry_token }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create -t ${{ env.REGISTRY_IMAGE }}:${{ inputs.tag }} $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ inputs.tag }}
+
+      # - name: Repository Dispatch
+      #   uses: peter-evans/repository-dispatch@v3
+      #   if: github.event_name != 'workflow_dispatch'
+      #   with:
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+      #     event-type: ${{ inputs.next_workflow }}
+      #     client-payload: |-
+      #       {
+      #         "ref": "${{ github.ref }}",
+      #         "sha": "${{ github.sha }}",
+      #         "tag": "${{ inputs.tag }}",
+      #         "artifacts": "${{ env.REGISTRY_IMAGE }}:${{ inputs.tag }}"
+      #       }

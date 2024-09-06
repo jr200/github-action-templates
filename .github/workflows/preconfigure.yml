@@ -1,0 +1,33 @@
+name: template-preconfigure
+
+on:
+  workflow_call:
+    inputs:
+      event_name:
+        description: toJson(github.event_name)
+        required: true
+        type: string
+      args_from_inputs:
+        description: toJson(github.event.inputs)
+        required: true
+        type: string
+      args_from_payload:
+        description: toJson(github.event.client_payload)
+        required: true
+        type: string
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    outputs:
+      context: ${{ steps.set-context.outputs.context }}
+    steps:
+      - id: set-context
+        run: |
+          if [ ${{ inputs.event_name }} == "workflow_dispatch" ]; then
+            JSON_DATA=`echo '${{ inputs.args_from_inputs }}' | jq -c`
+          else
+            JSON_DATA=`echo '${{ inputs.args_from_payload }}' | jq -c`
+          fi
+
+          echo "context=$JSON_DATA" >> $GITHUB_OUTPUT
