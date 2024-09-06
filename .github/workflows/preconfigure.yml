@@ -7,14 +7,13 @@ on:
         description: toJson(github.event_name)
         required: true
         type: string
-      args_from_inputs:
-        description: toJson(github.event.inputs)
+      event:
+        description: toJson(github.event)
         required: true
         type: string
-      args_from_payload:
-        description: toJson(github.event.client_payload)
-        required: true
-        type: string
+    outputs:
+      context:
+        value: ${{ jobs.configure.outputs.context }}
 
 jobs:
   configure:
@@ -24,10 +23,10 @@ jobs:
     steps:
       - id: set-context
         run: |
-          if [ ${{ inputs.event_name }} == "workflow_dispatch" ]; then
-            JSON_DATA=`echo '${{ inputs.args_from_inputs }}' | jq -c`
+          if [ "${{ inputs.event_name }}" == "workflow_dispatch" ]; then
+            JSON_DATA=$(echo '${{ toJson(fromJson(inputs.event).inputs) }}' | jq -c)
           else
-            JSON_DATA=`echo '${{ inputs.args_from_payload }}' | jq -c`
+            JSON_DATA=$(echo '${{ toJson(fromJson(inputs.event).client_payload) }}' | jq -c)
           fi
 
           echo "context=$JSON_DATA" >> $GITHUB_OUTPUT
