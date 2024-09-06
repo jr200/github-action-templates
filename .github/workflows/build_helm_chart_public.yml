@@ -1,4 +1,4 @@
-name: template-build-helm-chart
+name: template-build-helm-chart-public
 
 on:
   workflow_call:
@@ -9,9 +9,10 @@ on:
         type: string
         default: charts
       chart_repo:
-        description: "chart repo"
-        required: true
+        description: "chart repo (private)"
+        required: false
         type: string
+        default: jr200/helm-charts
       chart_repo_branch:
         description: chart repo branch
         required: false
@@ -96,9 +97,16 @@ jobs:
           | xargs -d$'\n' cr package --package-path "$PACKAGES"
           echo "dir=${PACKAGES}" >> $GITHUB_OUTPUT
 
-      - name: Helm Push
-        env:
-          GITHUB_TOKEN: ${{ secrets.charts_write_token }}
+      - name: Upload packages
+        run: |
+          set -ex
+          git config --list
+          owner=$(cut -d '/' -f 1 <<< '${{ github.repository }}')
+          repo=$(cut -d '/' -f 2 <<< '${{ github.repository }}')
+          cr upload --commit '${{ github.sha }}' --git-repo "$repo" --owner "$owner" --token '${{ github.token }}' \
+            --package-path '${{ steps.package.outputs.dir }}' --skip-existing
+
+      - name: Update charts index (without --overwrite flag)
         working-directory: .helm-chart-repo
         run: |
           set -ex
@@ -106,23 +114,11 @@ jobs:
           git config --local user.email "$GITHUB_ACTOR@users.noreply.github.com"
           git config --list
 
-          mkdir -p ./charts || echo ok
-          echo "dirs"
-          echo `pwd`
-          echo ../${{ steps.package.outputs.dir }}
-          echo `ls -l ../${{ steps.package.outputs.dir }}`
-          echo "find"
-          echo `find -L ../${{ steps.package.outputs.dir }} -type f -name '*.tgz' -print0`
-          CHART_PACKAGE_PATH=`find -L ../${{ steps.package.outputs.dir }} -type f -name '*.tgz' -print0 | xargs -0 ls -t | head -n 1`
-          CHART_PACKAGE_NAME=`basename ${CHART_PACKAGE_PATH}`
-
-          echo chart_package_path=$CHART_PACKAGE_PATH
-          echo chart_package_name=$CHART_PACKAGE_NAME
-
-          cp ${CHART_PACKAGE_PATH} ./charts/${CHART_PACKAGE_NAME}
-
-          helm repo index .
-
-          git add ./index.yaml ./charts
-          git commit -m "$CHART_PACKAGE_NAME"
-          git push origin ${{ inputs.chart_repo_branch }}
+          mkdir -p .cr-index
+          owner=$(cut -d '/' -f 1 <<< '${{ github.repository }}')
+          repo=$(cut -d '/' -f 2 <<< '${{ github.repository }}')
+          cr index --git-repo "$repo" --owner "$owner" \
+            --pages-branch '${{ inputs.chart_repo_branch }}' \
+            --package-path '../${{ steps.package.outputs.dir }}' \
+            --index-path .cr-index \
+            --push
