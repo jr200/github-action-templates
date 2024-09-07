@@ -31,8 +31,8 @@ env:
   REGISTRY_IMAGE: ${{ inputs.registry_name }}/${{ github.repository }}
   DEFAULT_UNIVERSE: |-
     [
-      {"platform": "linux/amd64", "os": "linux", "build-os": "ubuntu-latest"},
-      {"platform": "linux/arm64", "os": "linux", "build-os": "ubuntu-latest"}
+      {"platform": "linux/amd64", "os": "linux", "architecture": "amd64", "build-os": "ubuntu-latest"},
+      {"platform": "linux/arm64", "os": "linux", "architecture": "arm64", "build-os": "ubuntu-latest"}
     ]
 
 jobs:
@@ -115,6 +115,9 @@ jobs:
           provenance: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_OS=${{ matrix.os }}
+            BUILD_ARCH=${{ matrix.architecture }}
 
       - name: Export digest
         run: |
