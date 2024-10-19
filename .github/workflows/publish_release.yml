@@ -7,8 +7,13 @@ on:
         description: "release-version"
         required: true
         type: string
-      artifacts:
-        description: "artifacts-to-upload"
+      artifact_name:
+        description: "artifact-to-download"
+        required: false
+        type: string
+        default: ""
+      artifact_run_id:
+        description: "artifact-run-id"
         required: false
         type: string
         default: ""
@@ -20,10 +25,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: write
+
     steps:
       - name: checkout
         uses: actions/checkout@v4
+
+      - run: mkdir _gh_artifacts
+
+      - uses: actions/download-artifact@v4
+        if: inputs.artifact_name != ''
+        with:
+          run-id: ${{ inputs.artifact_run_id }}
+          github-token: ${{ secrets.token }}
+          name: ${{ inputs.artifact_name }}
+          path: _gh_artifacts
+
+      - name: Display structure of downloaded files
+        if: inputs.artifact_name != ''
+        run: ls -R _gh_artifacts
 
       - name: publish release
         uses: ncipollo/release-action@v1
@@ -32,4 +53,4 @@ jobs:
           generateReleaseNotes: true
           allowUpdates: true
           tag: ${{ inputs.tag }}
-          artifacts: ${{ inputs.artifacts }}
+          artifacts: _gh_artifacts/*
