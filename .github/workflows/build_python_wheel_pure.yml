@@ -13,11 +13,6 @@ on:
         required: false
         type: string
         default: ""
-      publish_pypi:
-        description: publish-to-pypi-flag
-        required: false
-        type: boolean
-        default: false
   
 jobs:
   build-wheel:
@@ -77,10 +72,3 @@ jobs:
           path: ${{ steps.get-wheel-name.outputs.wheel_name }}
           if-no-files-found: error
           retention-days: 1
-
-      - name: Publish to PyPI
-        id: upload-wheel-pypi
-        env:
-          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
-        run: poetry publish --build
-        if: inputs.publish_pypi == true
