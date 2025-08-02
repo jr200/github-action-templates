@@ -1,0 +1,71 @@
+name: template-build-publish-npmjs
+
+on:
+  workflow_call:
+    inputs:
+      pnpm-run-test:
+        description: "pnpm run test:run"
+        required: false
+        type: string
+        default: 'true'
+      pnpm-publish-args:
+        description: "pnpm publish args"
+        required: false
+        type: string
+        default: ~
+      node-version:
+        description: "node version"
+        required: false
+        type: string
+        default: '20'
+    secrets:
+      npmjs_api_token:
+        required: true
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run prettier --write
+
+      - name: run tests (optionally configured)
+        if: inputs.pnpm-run-test == 'true'
+        run: pnpm run test:run
+
+      - run: pnpm run build
+
+      - name: Configure npm for pnpm
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.npmjs_api_token }}" > ~/.npmrc
+
+      - name: build publish command
+        id: build-command
+        run: |
+          BASE_CMD="pnpm publish --access public --no-git-checks"
+          
+          if [ "${{ inputs.pnpm-publish-args }}" != "null" ] && [ "${{ inputs.pnpm-publish-args }}" != "" ]; then
+            PUBLISH_CMD="$BASE_CMD ${{ inputs.pnpm-publish-args }}"
+          else
+            PUBLISH_CMD="$BASE_CMD"
+          fi
+          
+          echo "Generated command: $PUBLISH_CMD"
+          echo "publish_command=$PUBLISH_CMD" >> $GITHUB_OUTPUT
+
+      - name: publish to npmjs
+        run: ${{ steps.build-command.outputs.publish_command }}
+        env:
+          NPM_TOKEN: ${{ secrets.npmjs_api_token }}
