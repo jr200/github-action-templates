@@ -3,6 +3,11 @@ name: template-build-publish-npmjs
 on:
   workflow_call:
     inputs:
+      checkout-ref:
+        description: "checkout ref"
+        required: false
+        type: string
+        default: "refs/heads/master"
       pnpm-run-test:
         description: "pnpm run test:run"
         required: false
@@ -28,6 +33,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout-ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
