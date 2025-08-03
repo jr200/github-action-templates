@@ -3,6 +3,11 @@ name: template-build-python-wheel-pure
 on:
   workflow_call:
     inputs:
+      checkout-ref:
+        description: "checkout ref"
+        required: false
+        type: string
+        default: "refs/heads/master"
       artifact_name:
         description: artifact-name
         required: false
@@ -27,6 +32,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout-ref }}
 
       - name: Read Python version from .python-version and add as environment variable
         run: |

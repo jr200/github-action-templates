@@ -3,6 +3,11 @@ name: template-publish-release
 on:
   workflow_call:
     inputs:
+      checkout-ref:
+        description: "checkout ref"
+        required: false
+        type: string
+        default: "refs/heads/master"
       tag:
         description: "release-version"
         required: true
@@ -29,8 +34,10 @@ jobs:
       contents: write
 
     steps:
-      - name: checkout
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout-ref }}
 
       - run: mkdir _gh_artifacts
 

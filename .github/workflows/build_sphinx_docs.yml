@@ -3,6 +3,11 @@ name: template-build-sphinx-docs
 on:
   workflow_call:
     inputs:
+      checkout-ref:
+        description: "checkout ref"
+        required: false
+        type: string
+        default: "refs/heads/master"
       unused-variable:
         description: unused-variable
         required: false
@@ -27,6 +32,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout-ref }}
 
       # - name: Read Python version from .python-version and add as environment variable
       #   run: |

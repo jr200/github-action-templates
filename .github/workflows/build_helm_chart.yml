@@ -3,6 +3,11 @@ name: template-build-helm-chart
 on:
   workflow_call:
     inputs:
+      checkout-ref:
+        description: "checkout ref"
+        required: false
+        type: string
+        default: "refs/heads/master"
       chart_dir:
         description: "chart folder"
         required: true
@@ -34,6 +39,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout-ref }}
 
       - name: Checkout Helm chart repo
         uses: actions/checkout@v4
