@@ -44,7 +44,10 @@ jobs:
       - uses: pnpm/action-setup@v4
         name: Install pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - name: Use clean pnpm-workspace config for CI (avoid locally stored packages used in dev)
+        run: test -f pnpm-workspace.yaml && mv pnpm-workspace.yaml pnpm-workspace.local.yaml
+
+      - run: pnpm install --no-frozen-lockfile
       - run: pnpm run lint
       - run: pnpm run prettier --write
 
@@ -53,6 +56,9 @@ jobs:
         run: pnpm run test:run
 
       - run: pnpm run build
+
+      - name: Restore pnpm-workspace config
+        run: test -f pnpm-workspace.local.yaml && mv pnpm-workspace.local.yaml pnpm-workspace.yaml
 
       - name: Configure npm for pnpm
         run: |
