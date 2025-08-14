@@ -52,7 +52,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          poetry install --no-root 
+          POETRY_REQUESTS_TIMEOUT=120 && POETRY_REQUESTS_MAX_RETRIES=3 && poetry install --no-root
 
       - name: Run formatting checks
         run: |

@@ -44,4 +44,4 @@ jobs:
       - name: Publish to PyPI
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.pypi_api_token }}
-        run: poetry publish ${{ inputs.publish-args }} 
+        run: POETRY_REQUESTS_TIMEOUT=120 && poetry publish ${{ inputs.publish-args }}
