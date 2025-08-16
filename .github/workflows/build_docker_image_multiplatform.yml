@@ -177,9 +177,14 @@ jobs:
         id: previous-latest
         run: |
           if docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest >/dev/null 2>&1; then
-            digest=$(docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest --format "{{json .}}" | jq -r '.Digest')
-            echo "digest=$digest" >> $GITHUB_OUTPUT
-            echo "Previous latest digest: $digest"
+            digest=$(docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest | awk '/^Digest:/ {print $2; exit}')
+            if [[ "$digest" =~ ^sha256: ]]; then
+              echo "digest=$digest" >> $GITHUB_OUTPUT
+              echo "Previous latest digest: $digest"
+            else
+              echo "digest=" >> $GITHUB_OUTPUT
+              echo "Could not detect a valid latest digest."
+            fi
           else
             echo "digest=" >> $GITHUB_OUTPUT
             echo "No existing latest tag found."
@@ -198,7 +203,7 @@ jobs:
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ inputs.tag }}
 
       - name: Show manual rollback command
-        if: ${{ steps.previous-latest.outputs.digest != '' }}
+        if: ${{ steps.previous-latest.outputs.digest != '' && startsWith(steps.previous-latest.outputs.digest, 'sha256:') }}
         run: |
           echo "To roll back 'latest' locally, run:"
           echo
