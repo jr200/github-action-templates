@@ -1,0 +1,72 @@
+name: template-build-uv-python-wheel-pure
+
+on:
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: "checkout ref"
+        required: false
+        type: string
+        default: "refs/heads/master"
+      artifact_name:
+        description: artifact-name
+        required: false
+        type: string
+        default: ""
+      artifact_glob:
+        description: artifact-glob-for-upload
+        required: false
+        type: string
+        default: ""
+  
+jobs:
+  build-wheel:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+    
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout-ref }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Setup Python version ${{ env.PYTHON_VERSION }}
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run formatting checks
+        run: |
+          uv run ruff check --output-format=github .
+
+      - name: Build and check package
+        run: |
+          uv build --wheel
+
+      - name: get name of built package and store in env variable
+        if: inputs.artifact_glob != ''
+        id: get-wheel-name
+        run: |
+          artifacts_glob=${{ inputs.artifact_glob }}
+          WHEEL_NAME=`ls -l $artifacts_glob | awk '{print $9}'`
+          echo "wheel_name=$WHEEL_NAME" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.artifact_glob != ''
+        id: upload-wheel-github
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ steps.get-wheel-name.outputs.wheel_name }}
+          if-no-files-found: error
+          retention-days: 1
