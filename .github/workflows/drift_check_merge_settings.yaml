@@ -176,6 +176,29 @@ jobs:
               --body "${body}"
           fi
 
+      - name: Close drift issue when clean
+        if: steps.scan.outputs.exit == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title="Merge-settings drift detected"
+
+          existing=$(gh issue list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --state open \
+            --search "in:title \"${title}\"" \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [[ -n "${existing}" ]]; then
+            gh issue close "${existing}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --comment 'Auto-closed after `drift-check-merge-settings` found no merge-settings drift.'
+            echo "closed issue #${existing}"
+          else
+            echo "no open drift issue to close"
+          fi
+
       - name: Fail job if drift found
         if: steps.scan.outputs.exit != '0'
         run: |
