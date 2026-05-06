@@ -8,3 +8,4 @@ includes:
   - drift-check
   - renovate
   - lint-no-auto-merge
+  - lint-version-downgrades

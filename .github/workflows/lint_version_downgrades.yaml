@@ -1,0 +1,33 @@
+name: template-lint-version-downgrades
+
+# Reusable workflow: fails if a PR downgrades a Renovate-tracked Dockerfile
+# ARG pin compared to its base branch. v1 scope is annotated `ARG *_VERSION`
+# lines so stale feature branches cannot silently reintroduce older pins.
+
+on:
+  workflow_call:
+    inputs:
+      base-ref:
+        description: Base branch ref to compare against (for example master)
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  lint-version-downgrades:
+    runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    steps:
+      - name: Checkout caller repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Checkout template scripts
+        uses: actions/checkout@v6
+        with:
+          repository: jr200-labs/github-action-templates
+          ref: master
+          path: _gha_templates
+
+      - name: Run lint-version-downgrades.sh
+        run: ./_gha_templates/scripts/lint-version-downgrades.sh "${{ inputs.base-ref }}"
