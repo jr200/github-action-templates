@@ -12,10 +12,12 @@
 #
 # Rule enforced:
 #   Every entry under .packages MUST set release-type explicitly
-#   (or inherit from a top-level `release-type`). Marker-file
-#   cross-checks were tried and dropped — repos legitimately mix
-#   release-type=simple with a package.json (devDeps for commitlint
-#   etc), making the cross-check more false-positive than catch.
+#   (or inherit from a top-level `release-type`), and the effective
+#   release-type must not be the canonical placeholder value synced from
+#   github-action-templates. Marker-file cross-checks were tried and
+#   dropped — repos legitimately mix release-type=simple with a
+#   package.json (devDeps for commitlint etc), making the cross-check
+#   more false-positive than catch.
 #
 # Usage: .shared/lint-release-please-config.sh [config-file]
 #   config-file defaults to release-please-config.json
@@ -25,6 +27,7 @@
 set -euo pipefail
 
 config="${1:-release-please-config.json}"
+placeholder="REQUIRED_REPLACE_WITH_VALID_RELEASE_TYPE"
 
 if [ ! -f "$config" ]; then
   echo "lint-release-please-config: $config not present, skipping"
@@ -45,6 +48,11 @@ fail=0
 # repos) get false-positives.
 top_level_type=$(jq -r '.["release-type"] // ""' "$config")
 
+if [ "$top_level_type" = "$placeholder" ]; then
+  echo "::error file=${config}::top-level release-type is still the canonical placeholder '${placeholder}'. release-please needs one release-type per package path in the manifest. Set a top-level release-type to act as the default for all packages, or set 'packages.<path>.release-type' per package (for example: go, python, node, simple)."
+  fail=1
+fi
+
 while IFS=$'\t' read -r pkg_dir release_type; do
   pkg_label="$pkg_dir"
   [ "$pkg_dir" = "." ] && pkg_label="<root>"
@@ -55,7 +63,13 @@ while IFS=$'\t' read -r pkg_dir release_type; do
   fi
 
   if [ -z "$effective_type" ]; then
-    echo "::error file=${config}::package '${pkg_label}' missing release-type (no per-package value, no top-level default) — release-please defaults to 'node' (expects package.json), which silently breaks Python/Go/Rust repos. Set release-type explicitly."
+    echo "::error file=${config}::package '${pkg_label}' missing release-type (no per-package value, no top-level default). release-please needs one release-type per package path in the manifest. Set a top-level release-type to act as the default for all packages, or set 'packages.<path>.release-type' per package. If omitted, release-please defaults to 'node' and can silently break non-Node repos."
+    fail=1
+    continue
+  fi
+
+  if [ "$effective_type" = "$placeholder" ]; then
+    echo "::error file=${config}::package '${pkg_label}' still resolves to the canonical placeholder '${placeholder}'. release-please needs one release-type per package path in the manifest. Set a top-level release-type to act as the default for all packages, or set 'packages.<path>.release-type' per package (for example: go, python, node, simple)."
     fail=1
     continue
   fi
