@@ -67,11 +67,11 @@ jobs:
           tag_part="${GITHUB_REF_NAME:-$(git describe --tags --always)}"
           archive="${ARCHIVE_PREFIX}-${tag_part}.tar.gz"
           mapfile -t paths < <(python3 - <<'PY'
-import json, os
-for item in json.loads(os.environ['OCI_PATHS_JSON']):
-    print(item)
-PY
-)
+          import json, os
+          for item in json.loads(os.environ['OCI_PATHS_JSON']):
+              print(item)
+          PY
+          )
           tar -czf "$archive" "${paths[@]}"
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
           ls -l "$archive"
@@ -121,13 +121,7 @@ PY
           {
             echo "## Published OCI artifact"
             echo ""
-            echo "- **Tag**: \
-
-\`${REF}\`"
-            echo "- **Digest**: \
-
-\`${DIGEST}\`"
-            echo "- **Pull**: \
-
-\`oras pull ${REF}\`"
+            echo "- **Tag**: \`${REF}\`"
+            echo "- **Digest**: \`${DIGEST}\`"
+            echo "- **Pull**: \`oras pull ${REF}\`"
           } >> "$GITHUB_STEP_SUMMARY"
