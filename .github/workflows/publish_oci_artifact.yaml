@@ -1,0 +1,127 @@
+name: template-publish-oci-artifact
+
+on:
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: checkout ref
+        required: false
+        type: string
+        default: refs/heads/master
+      config-path:
+        description: Path to OCI artifact config JSON in the caller repo
+        required: false
+        type: string
+        default: .github/oci-artifact.json
+      runner:
+        description: Runner label
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  publish:
+    runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.checkout-ref }}
+
+      - name: Validate OCI config
+        id: cfg
+        shell: bash
+        run: |
+          set -euo pipefail
+          cfg="${{ inputs.config-path }}"
+          [ -f "$cfg" ] || { echo "ERROR: missing OCI artifact config: $cfg" >&2; exit 1; }
+          jq -e . "$cfg" >/dev/null
+          artifact_type=$(jq -r '.artifactType // empty' "$cfg")
+          archive_prefix=$(jq -r '.archivePrefix // empty' "$cfg")
+          description=$(jq -r '.description // empty' "$cfg")
+          [ -n "$artifact_type" ] || { echo "ERROR: artifactType is required in $cfg" >&2; exit 1; }
+          [ -n "$archive_prefix" ] || { echo "ERROR: archivePrefix is required in $cfg" >&2; exit 1; }
+          [ -n "$description" ] || { echo "ERROR: description is required in $cfg" >&2; exit 1; }
+          paths_json=$(jq -c '.paths // []' "$cfg")
+          [ "$paths_json" != "[]" ] || { echo "ERROR: paths[] is required in $cfg" >&2; exit 1; }
+          echo "artifact_type=$artifact_type" >> "$GITHUB_OUTPUT"
+          echo "archive_prefix=$archive_prefix" >> "$GITHUB_OUTPUT"
+          echo "description=$description" >> "$GITHUB_OUTPUT"
+          echo "paths_json=$paths_json" >> "$GITHUB_OUTPUT"
+
+      - uses: oras-project/setup-oras@v2
+
+      - uses: sigstore/cosign-installer@v4.1.1
+
+      - name: Pack content
+        id: pack
+        shell: bash
+        env:
+          OCI_PATHS_JSON: ${{ steps.cfg.outputs.paths_json }}
+          ARCHIVE_PREFIX: ${{ steps.cfg.outputs.archive_prefix }}
+        run: |
+          set -euo pipefail
+          tag_part="${GITHUB_REF_NAME:-$(git describe --tags --always)}"
+          archive="${ARCHIVE_PREFIX}-${tag_part}.tar.gz"
+          mapfile -t paths < <(python3 - <<'PY'
+          import json, os
+          for item in json.loads(os.environ['OCI_PATHS_JSON']):
+              print(item)
+          PY
+          )
+          tar -czf "$archive" "${paths[@]}"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          ls -l "$archive"
+
+      - name: Login to GHCR
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push artifact
+        id: push
+        shell: bash
+        env:
+          ARCHIVE: ${{ steps.pack.outputs.archive }}
+          ARTIFACT_TYPE: ${{ steps.cfg.outputs.artifact_type }}
+          DESCRIPTION: ${{ steps.cfg.outputs.description }}
+        run: |
+          set -euo pipefail
+          ref="ghcr.io/${{ github.repository }}:${GITHUB_REF_NAME}"
+          oras push "$ref" \
+            --artifact-type "$ARTIFACT_TYPE" \
+            --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --annotation "org.opencontainers.image.revision=${{ github.sha }}" \
+            --annotation "org.opencontainers.image.version=${GITHUB_REF_NAME}" \
+            --annotation "org.opencontainers.image.licenses=UNLICENSED" \
+            --annotation "org.opencontainers.image.description=${DESCRIPTION}" \
+            "${ARCHIVE}:application/vnd.oci.image.layer.v1.tar+gzip"
+          digest=$(oras manifest fetch --descriptor "$ref" | jq -r .digest)
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Sign with cosign
+        shell: bash
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          cosign sign --yes "ghcr.io/${{ github.repository }}@${DIGEST}"
+
+      - name: Summary
+        shell: bash
+        env:
+          REF: ${{ steps.push.outputs.ref }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          {
+            echo "## Published OCI artifact"
+            echo ""
+            echo "- **Tag**: \`${REF}\`"
+            echo "- **Digest**: \`${DIGEST}\`"
+            echo "- **Pull**: \`oras pull ${REF}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

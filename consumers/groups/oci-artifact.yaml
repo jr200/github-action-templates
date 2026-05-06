@@ -1,0 +1,3 @@
+# Publish a repo-defined OCI artifact bundle to GHCR on release.
+includes:
+  - publish-oci-artifact
