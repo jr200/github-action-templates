@@ -17,7 +17,7 @@ Reusable GitHub Actions workflows + canonical caller workflows for jr200-labs / 
 ```yaml
 # .github/.shared-config.yaml
 workflows:
-  - hygiene        # commitlint + lint-pr-metadata + drift-check + renovate
+  - hygiene        # commitlint + lint-pr-metadata + drift-check + renovate + version downgrade guard
   - go             # ci-go
   - docker         # build-docker-image
   - release        # release-please
@@ -43,7 +43,7 @@ Current groups:
 
 | Group | Pulls in | Use when |
 |---|---|---|
-| `hygiene` | lint-pr-metadata, commitlint, drift-check, renovate | every repo that wants any CI |
+| `hygiene` | lint-pr-metadata, commitlint, drift-check, renovate, lint-version-downgrades | every repo that wants any CI |
 | `python` | ci-python | repo has `pyproject.toml` |
 | `node` | ci-node | repo has `package.json` |
 | `go` | ci-go | repo has `go.mod` |
