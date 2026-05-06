@@ -13,6 +13,11 @@ on:
         required: false
         type: string
         default: .github/oci-artifact.json
+      tag:
+        description: Release tag to publish (for example v1.5.2)
+        required: false
+        type: string
+        default: ''
       runner:
         description: Runner label
         required: false
@@ -62,9 +67,20 @@ jobs:
         env:
           OCI_PATHS_JSON: ${{ steps.cfg.outputs.paths_json }}
           ARCHIVE_PREFIX: ${{ steps.cfg.outputs.archive_prefix }}
+          PUBLISH_TAG: ${{ inputs.tag }}
+          CHECKOUT_REF: ${{ inputs.checkout-ref }}
         run: |
           set -euo pipefail
-          tag_part="${GITHUB_REF_NAME:-$(git describe --tags --always)}"
+          tag_part="${PUBLISH_TAG}"
+          if [ -z "$tag_part" ]; then
+            if [[ "$CHECKOUT_REF" == refs/tags/* ]]; then
+              tag_part="${CHECKOUT_REF#refs/tags/}"
+            elif [[ "$CHECKOUT_REF" == v* ]]; then
+              tag_part="$CHECKOUT_REF"
+            else
+              tag_part="$(git describe --tags --exact-match 2>/dev/null || git describe --tags --always)"
+            fi
+          fi
           archive="${ARCHIVE_PREFIX}-${tag_part}.tar.gz"
           mapfile -t paths < <(python3 - <<'PY'
           import json, os
@@ -89,14 +105,26 @@ jobs:
           ARCHIVE: ${{ steps.pack.outputs.archive }}
           ARTIFACT_TYPE: ${{ steps.cfg.outputs.artifact_type }}
           DESCRIPTION: ${{ steps.cfg.outputs.description }}
+          PUBLISH_TAG: ${{ inputs.tag }}
+          CHECKOUT_REF: ${{ inputs.checkout-ref }}
         run: |
           set -euo pipefail
-          ref="ghcr.io/${{ github.repository }}:${GITHUB_REF_NAME}"
+          tag_part="${PUBLISH_TAG}"
+          if [ -z "$tag_part" ]; then
+            if [[ "$CHECKOUT_REF" == refs/tags/* ]]; then
+              tag_part="${CHECKOUT_REF#refs/tags/}"
+            elif [[ "$CHECKOUT_REF" == v* ]]; then
+              tag_part="$CHECKOUT_REF"
+            else
+              tag_part="$(git describe --tags --exact-match 2>/dev/null || git describe --tags --always)"
+            fi
+          fi
+          ref="ghcr.io/${{ github.repository }}:${tag_part}"
           oras push "$ref" \
             --artifact-type "$ARTIFACT_TYPE" \
             --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
             --annotation "org.opencontainers.image.revision=${{ github.sha }}" \
-            --annotation "org.opencontainers.image.version=${GITHUB_REF_NAME}" \
+            --annotation "org.opencontainers.image.version=${tag_part}" \
             --annotation "org.opencontainers.image.licenses=UNLICENSED" \
             --annotation "org.opencontainers.image.description=${DESCRIPTION}" \
             "${ARCHIVE}:application/vnd.oci.image.layer.v1.tar+gzip"
