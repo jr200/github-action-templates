@@ -52,6 +52,7 @@ Current groups:
 | `helm-chart` | build-helm-chart | repo publishes a Helm chart (needs `vars.HELM_CHART_REPO` + `secrets.CHARTS_WRITE_TOKEN`) |
 | `wheel` | publish-wheel | repo publishes a wheel to PyPI (needs `secrets.PYPI_API_TOKEN`) |
 | `release` | release-please | repo cuts versioned releases |
+| `oci-artifact` | publish-oci-artifact | repo publishes a generic OCI artifact bundle to GHCR on release |
 | `drift-check-rulesets` | drift-check-rulesets | one consumer per org watches its own ruleset state |
 
 ## Trigger model
@@ -69,6 +70,14 @@ Current groups:
 ## Updating an existing canonical workflow
 
 Edit `consumers/workflows/<name>.yaml` and merge to `master`. Every consuming repo's `drift-check` job goes red on its next CI run until the maintainer runs `sync-shared` and PRs the result. The drift is the migration trigger — no batch updates from outside.
+
+## Bespoke workflows
+
+Consumer repos may keep additional non-canonical workflows alongside the
+injected set, but they must be named `bespoke_*.yaml`. Drift-check ignores that
+prefix when reporting workflows outside the resolved shared set. Any other
+extra workflow filename is still surfaced as `stale-or-bespoke` so accidental
+drift stays visible.
 
 ## Load-bearing properties
 
