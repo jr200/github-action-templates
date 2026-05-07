@@ -11,6 +11,7 @@
 # every targeted repo:
 #   - allow_auto_merge=false
 #   - delete_branch_on_merge=true
+#   - allow_update_branch=true
 #
 # Usage:
 #   scripts/apply-rulesets.sh [--dry-run] [--org ORG] [--repo ORG/REPO]
@@ -26,7 +27,10 @@ DRY_RUN=0
 ORG_FILTER=""
 RULESET_FILTER=""
 SKIP_AUTO_MERGE=0
+INTERACTIVE_ORG_SELECTION=0
+APPLY_ORG_SCOPE=1
 declare -a REPO_FILTERS=()
+declare -a SUPPORTED_ORGS=("jr200-labs" "whengas")
 
 usage() {
     sed -n '1,/^set -euo/p' "$0" | sed 's/^# \?//'
@@ -34,7 +38,10 @@ usage() {
 
 Options:
   --dry-run            Print API calls instead of applying changes.
-  --org <org>          Limit reconciliation to one org from targets.yaml.
+  --org <org>          Limit reconciliation to one supported org and prompt
+                       Y/n (default Y) for each repo before applying repo-
+                       scoped changes. For org-scoped rulesets, the script
+                       prompts once before applying the org-wide rule.
   --ruleset <name>     Limit reconciliation to one ruleset from targets.yaml.
   --repo <org/repo>    Limit repo-scope reconciliation to one or more repos.
                        Repeat flag to target multiple repos.
@@ -43,14 +50,62 @@ Options:
 
 Examples:
   scripts/apply-rulesets.sh --org jr200-labs --dry-run
+  scripts/apply-rulesets.sh --org whengas
   scripts/apply-rulesets.sh --ruleset trunk-protect --repo jr200-labs/mem0-dashboard
 EOF
+}
+
+org_supported() {
+    local candidate="$1"
+    local supported
+    for supported in "${SUPPORTED_ORGS[@]}"; do
+        if [ "$supported" = "$candidate" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+confirm_default_yes() {
+    local prompt="$1"
+    local reply
+
+    if [ ! -t 0 ]; then
+        return 0
+    fi
+
+    read -r -p "$prompt [Y/n] " reply || return 1
+    case "$reply" in
+        ""|[Yy]|[Yy][Ee][Ss]) return 0 ;;
+        [Nn]|[Nn][Oo]) return 1 ;;
+        *)
+            echo "please answer Y or n" >&2
+            confirm_default_yes "$prompt"
+            ;;
+    esac
+}
+
+interactive_select_repos() {
+    local org="$1"
+    local repos repo
+
+    repos=$(gh api "orgs/$org/repos?per_page=100&type=all" --paginate --jq '.[] | select(.archived==false) | .name')
+    while IFS= read -r repo; do
+        [ -z "$repo" ] && continue
+        if confirm_default_yes "apply to $org/$repo?"; then
+            REPO_FILTERS+=("$org/$repo")
+        fi
+    done <<<"$repos"
 }
 
 repo_selected() {
     local org="$1" repo="$2"
     local fq="${org}/${repo}"
     local selected
+
+    if [ "$INTERACTIVE_ORG_SELECTION" = 1 ] && [ "${#REPO_FILTERS[@]}" -eq 0 ]; then
+        return 1
+    fi
 
     if [ "${#REPO_FILTERS[@]}" -eq 0 ]; then
         return 0
@@ -81,6 +136,11 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+if [ -n "$ORG_FILTER" ] && ! org_supported "$ORG_FILTER"; then
+    echo "unsupported --org '$ORG_FILTER' (supported: ${SUPPORTED_ORGS[*]})" >&2
+    exit 2
+fi
+
 if [ -n "$ORG_FILTER" ] && [ "${#REPO_FILTERS[@]}" -gt 0 ]; then
     for selected in "${REPO_FILTERS[@]}"; do
         case "$selected" in
@@ -102,6 +162,11 @@ for selected in "${REPO_FILTERS[@]}"; do
             ;;
     esac
 done
+
+if [ -n "$ORG_FILTER" ] && [ "${#REPO_FILTERS[@]}" -eq 0 ]; then
+    INTERACTIVE_ORG_SELECTION=1
+    interactive_select_repos "$ORG_FILTER"
+fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TARGETS="$REPO_ROOT/rulesets/targets.yaml"
@@ -143,6 +208,11 @@ diff_or_apply() {
 apply_org() {
     local org="$1" name="$2" body_file="$3"
     local existing
+
+    if [ "$INTERACTIVE_ORG_SELECTION" = 1 ] && [ "$APPLY_ORG_SCOPE" = 0 ]; then
+        echo "  org/$org ruleset $name: skipped by prompt"
+        return
+    fi
 
     local tmp_body
     tmp_body=$(mktemp)
@@ -254,6 +324,18 @@ while IFS= read -r ruleset; do
         [ -z "$org" ] && continue
         [ -n "$ORG_FILTER" ] && [ "$org" != "$ORG_FILTER" ] && continue
         scope=$(yq -r ".\"$ruleset\".\"$org\"" "$TARGETS")
+
+        if [ "$INTERACTIVE_ORG_SELECTION" = 1 ] && [ "$scope" = "org" ]; then
+            if [ "${#REPO_FILTERS[@]}" -eq 0 ]; then
+                echo "  org/$org: no repos selected; skipping org-scoped ruleset $ruleset"
+                APPLY_ORG_SCOPE=0
+            elif confirm_default_yes "apply org-scoped ruleset '$ruleset' to all repos in $org?"; then
+                APPLY_ORG_SCOPE=1
+            else
+                APPLY_ORG_SCOPE=0
+            fi
+        fi
+
         case "$scope" in
             org)
                 apply_org  "$org" "$ruleset" "$body"
