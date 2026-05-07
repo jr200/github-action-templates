@@ -12,7 +12,7 @@ on:
         description: "Path to the Quarto site directory"
         required: false
         type: string
-        default: "docs/site"
+        default: "docs"
       runner:
         description: 'Runner label (e.g. ubuntu-latest or self-hosted)'
         required: false
