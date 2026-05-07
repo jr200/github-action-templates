@@ -221,19 +221,21 @@ reconcile_repo_settings() {
         if ! repo_selected "$org" "$repo"; then
             continue
         fi
-        local current auto_merge delete_branch
-        current=$(gh api "/repos/$org/$repo" -q '{allow_auto_merge: .allow_auto_merge, delete_branch_on_merge: .delete_branch_on_merge}')
+        local current auto_merge delete_branch update_branch
+        current=$(gh api "/repos/$org/$repo" -q '{allow_auto_merge: .allow_auto_merge, delete_branch_on_merge: .delete_branch_on_merge, allow_update_branch: .allow_update_branch}')
         auto_merge=$(jq -r '.allow_auto_merge' <<<"$current")
         delete_branch=$(jq -r '.delete_branch_on_merge' <<<"$current")
+        update_branch=$(jq -r '.allow_update_branch' <<<"$current")
 
-        if [ "$auto_merge" = "false" ] && [ "$delete_branch" = "true" ]; then
+        if [ "$auto_merge" = "false" ] && [ "$delete_branch" = "true" ] && [ "$update_branch" = "true" ]; then
             continue
         fi
 
-        echo "  repo/$org/$repo: reconcile allow_auto_merge=false, delete_branch_on_merge=true (drift detected)"
+        echo "  repo/$org/$repo: reconcile allow_auto_merge=false, delete_branch_on_merge=true, allow_update_branch=true (drift detected)"
         run gh api -X PATCH "/repos/$org/$repo" \
             -F allow_auto_merge=false \
             -F delete_branch_on_merge=true \
+            -F allow_update_branch=true \
             --silent
     done <<<"$repos"
 }
