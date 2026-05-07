@@ -35,6 +35,7 @@ Adjacent repo settings are also reconciled on every targeted repo:
 
 - `allow_auto_merge=false` so PRs can't auto-merge ahead of the CODEOWNERS review.
 - `delete_branch_on_merge=true` so merged PR branches are cleaned up automatically.
+- `allow_update_branch=true` so PRs can use GitHub's `Update branch` button when the base branch moves ahead.
 
 ## Adding a target
 
@@ -62,7 +63,7 @@ Useful flags for staged rollout:
 - `--repo ORG/REPO` (repeatable): target specific repos only.
 - `--org ORG`: narrow to one org from `targets.yaml`.
 - `--ruleset NAME`: apply one canonical ruleset only.
-- `--skip-auto-merge`: skip repo-level merge-setting patches (`allow_auto_merge=false`, `delete_branch_on_merge=true`) if you only want ruleset reconciliation.
+- `--skip-auto-merge`: skip repo-level merge-setting patches (`allow_auto_merge=false`, `delete_branch_on_merge=true`, `allow_update_branch=true`) if you only want ruleset reconciliation.
 
 ## Adding a new ruleset
 
