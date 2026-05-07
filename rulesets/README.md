@@ -17,6 +17,7 @@ rulesets/
 scripts/apply-rulesets.sh             # reconcile
 scripts/apply-rulesets.sh --dry-run   # show what would change
 scripts/apply-rulesets.sh --org jr200-labs --dry-run
+scripts/apply-rulesets.sh --org whengas
 scripts/apply-rulesets.sh --repo jr200-labs/mem0-dashboard --ruleset trunk-protect
 ```
 
@@ -61,7 +62,7 @@ scripts/apply-rulesets.sh --repo jr200-labs/new-repo --ruleset trunk-protect
 Useful flags for staged rollout:
 
 - `--repo ORG/REPO` (repeatable): target specific repos only.
-- `--org ORG`: narrow to one org from `targets.yaml`.
+- `--org ORG`: narrow to one supported org (`jr200-labs` or `whengas`) and prompt `Y/n` per repo before applying repo-scoped changes. For org-scoped rulesets, the script also prompts once before applying the org-wide rule.
 - `--ruleset NAME`: apply one canonical ruleset only.
 - `--skip-auto-merge`: skip repo-level merge-setting patches (`allow_auto_merge=false`, `delete_branch_on_merge=true`, `allow_update_branch=true`) if you only want ruleset reconciliation.
 
