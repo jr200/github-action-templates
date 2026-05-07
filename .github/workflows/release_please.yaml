@@ -124,3 +124,44 @@ jobs:
           manifest-file: ${{ inputs.manifest-file }}
           target-branch: ${{ inputs.target-branch }}
           release-type: ${{ inputs.release-type }}
+
+      - name: Close stale release PRs after publish
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+        shell: bash
+        run: |
+          head_ref="release-please--branches--${TARGET_BRANCH}"
+          gh pr list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --state open \
+            --head "${head_ref}" \
+            --json number,title,headRefOid \
+            --jq '.[] | @base64' | while IFS= read -r row; do
+              [ -z "${row}" ] && continue
+              pr_json=$(printf '%s' "${row}" | base64 --decode)
+              pr_number=$(jq -r '.number' <<<"${pr_json}")
+              pr_title=$(jq -r '.title' <<<"${pr_json}")
+              pr_head_oid=$(jq -r '.headRefOid' <<<"${pr_json}")
+
+              case "${pr_title}" in
+                "chore(${TARGET_BRANCH}): release "*) ;;
+                *)
+                  echo "leaving PR #${pr_number} open (title does not match release PR pattern)"
+                  continue
+                  ;;
+              esac
+
+              if [ "${pr_head_oid}" = "${RELEASE_SHA}" ]; then
+                echo "leaving PR #${pr_number} open (head matches published release commit)"
+                continue
+              fi
+
+              gh pr close "${pr_number}" \
+                --repo "${GITHUB_REPOSITORY}" \
+                --comment "Closing stale release PR after ${RELEASE_TAG} was already published from ${RELEASE_SHA}."
+              echo "closed stale release PR #${pr_number}"
+            done
