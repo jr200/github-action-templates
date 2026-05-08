@@ -195,7 +195,6 @@ jobs:
     needs: [unit, changes]
     permissions:
       contents: read
-      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -212,9 +211,20 @@ jobs:
           node-version: ${{ inputs.node-version }}
           cache: pnpm
 
-      - name: Size-limit (compare vs base branch, comment on PR)
-        uses: andresz1/size-limit-action@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          package_manager: pnpm
-          script: pnpm run size
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build app
+        run: |
+          if node -e "const p=require('./package.json'); process.exit(p.scripts?.build ? 0 : 1)" 2>/dev/null; then
+            pnpm build
+          else
+            echo "No build script found, skipping"
+          fi
+
+      - name: Check size limit
+        run: |
+          if node -e "const p=require('./package.json'); process.exit(p.scripts?.size ? 0 : 1)" 2>/dev/null; then
+            pnpm size
+          else
+            echo "No size script found, skipping"
+          fi
