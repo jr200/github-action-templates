@@ -6,7 +6,7 @@
     "cache": ["commitlint.config.mjs", "lint-release-please-config.sh"],
     "merged": [
       {
-        "source": "release-please-config.json",
+        "source": "release-please-config.base.json",
         "local": ".release-please.local.json",
         "target": "release-please-config.json"
       }
