@@ -182,6 +182,7 @@ done
 # Refresh self for future syncs (best-effort)
 download_to "sync.sh" "${SHARED_DIR}/sync.sh" || true
 [ -f "${SHARED_DIR}/sync.sh" ] && chmod +x "${SHARED_DIR}/sync.sh"
+[ -f "${SHARED_DIR}/lint-release-please-config.sh" ] && chmod +x "${SHARED_DIR}/lint-release-please-config.sh"
 
 ensure_gitignore
 
