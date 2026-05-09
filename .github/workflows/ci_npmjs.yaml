@@ -111,6 +111,9 @@ jobs:
       - name: Sync shared lint config
         run: |
           mkdir -p .shared
+          curl -sfL "https://raw.githubusercontent.com/jr200-labs/github-action-templates/master/shared/sync.sh" \
+            -o .shared/sync.sh
+          chmod +x .shared/sync.sh
           curl -sfL "https://raw.githubusercontent.com/jr200-labs/github-action-templates/master/shared/eslint.config.mjs" \
             -o .shared/eslint.config.mjs
           # commitlint.config.mjs at the consumer root re-exports the shared
@@ -124,7 +127,8 @@ jobs:
 
       - name: Lint release-please config
         run: |
-          if [ -f release-please-config.json ]; then
+          if [ -f .release-please.local.json ] || [ -f release-please-config.json ]; then
+            .shared/sync.sh
             .shared/lint-release-please-config.sh release-please-config.json
           else
             echo "No release-please config found, skipping"

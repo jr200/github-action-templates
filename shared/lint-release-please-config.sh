@@ -24,7 +24,8 @@
 # by the release_please reusable workflow as a fail-fast pre-step. For
 # repos using the merged template config, failures should point directly
 # at .release-please.local.json so the next agent can repair the source
-# of truth instead of hand-editing the generated config.
+# of truth instead of hand-editing the generated, gitignored merge
+# artifact release-please-config.json.
 set -euo pipefail
 
 config="${1:-release-please-config.json}"
@@ -42,6 +43,23 @@ fi
 
 fail=0
 
+ensure_generated_config_ignored() {
+  local cfg_basename
+  cfg_basename=$(basename "$config")
+
+  [ "$cfg_basename" = "release-please-config.json" ] || return 0
+
+  if [ ! -f .gitignore ] || ! grep -Eq '^/?release-please-config\.json$' .gitignore; then
+    echo "::error file=.gitignore::release-please-config.json must be gitignored in repos using the shared release-please config. Add 'release-please-config.json' to .gitignore and re-run './.shared/sync.sh'."
+    fail=1
+  fi
+
+  if command -v git >/dev/null 2>&1 && git ls-files --error-unmatch "$config" >/dev/null 2>&1; then
+    echo "::error file=${config}::release-please-config.json must be generated, not tracked. Remove it from git with 'git rm --cached release-please-config.json', keep '.release-please.local.json' as the source of truth, then re-run './.shared/sync.sh'."
+    fail=1
+  fi
+}
+
 overlay_fix_hint() {
   local cfg_basename
   cfg_basename=$(basename "$config")
@@ -50,8 +68,8 @@ overlay_fix_hint() {
   [ -f "$local_overlay" ] && return 0
 
   cat <<EOF
- For repos synced from jr200-labs/github-action-templates, '${config}' is a merged file.
- Fix: create '${local_overlay}' with the repo's release type, then re-run './.shared/sync.sh'.
+  For repos synced from jr200-labs/github-action-templates, '${config}' is a generated merged file.
+  Fix: create '${local_overlay}' with the repo's release type, then re-run './.shared/sync.sh'.
  Example:
    {
      "release-type": "node"
@@ -64,6 +82,8 @@ EOF
 # match that inheritance — otherwise repos with one top-level setting
 # and an empty `.` package (the canonical pattern for single-package
 # repos) get false-positives.
+ensure_generated_config_ignored
+
 top_level_type=$(jq -r '.["release-type"] // ""' "$config")
 
 while IFS=$'\t' read -r pkg_dir release_type; do

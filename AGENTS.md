@@ -113,3 +113,19 @@ Reference: `jr200-labs/polars-hist-db/.github/workflows/integration-tests.yaml` 
 ## Lint configs
 
 Separate from the workflow injection: `shared/sync.sh` syncs canonical lint configs (ruff.toml, eslint.config.mjs, .golangci.yml, etc.) into `.shared/` in consumer repos. That mechanism predates `consumers/` and is unrelated; see `shared/MANIFEST.json`.
+
+### Release-please config flow
+
+`release-please-config.json` is a generated artifact now, not committed source. Agents should treat the files like this:
+
+- `.release-please.local.json` — committed source of truth for per-repo release-please overrides such as `release-type`
+- `shared/release-please-config.base.json` — template-owned base config in this repo
+- `release-please-config.json` — generated merge output at the consumer repo root, recreated by `./.shared/sync.sh`, and required to be gitignored
+
+Rules:
+
+- Never hand-edit `release-please-config.json` in a consumer repo
+- Never commit `release-please-config.json`; if it is tracked, remove it from the index
+- When changing release-please behavior for a consumer, edit `.release-please.local.json`, then run `./.shared/sync.sh`
+- Release-related CI should run `sync.sh` before linting or invoking release-please so the generated config matches the committed overlay
+- The shared lint fails if `release-please-config.json` is not listed in `.gitignore` for a repo using the shared release config flow

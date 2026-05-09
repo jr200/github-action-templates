@@ -91,6 +91,15 @@ jobs:
       - name: Checkout (for config validation)
         uses: actions/checkout@v6
 
+      - name: Sync shared release config
+        shell: bash
+        run: |
+          mkdir -p .shared
+          curl -sfL "https://raw.githubusercontent.com/jr200-labs/github-action-templates/master/shared/sync.sh" \
+            -o .shared/sync.sh
+          chmod +x .shared/sync.sh
+          .shared/sync.sh
+
       - name: Validate release-please-config.json
         # Fail fast on common misconfigurations — release-please defaults
         # release-type to `node` when omitted, which silently breaks
