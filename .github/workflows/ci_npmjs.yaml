@@ -129,6 +129,7 @@ jobs:
         run: |
           if [ -f .release-please.local.json ] || [ -f release-please-config.json ]; then
             .shared/sync.sh
+            chmod +x .shared/lint-release-please-config.sh
             .shared/lint-release-please-config.sh release-please-config.json
           else
             echo "No release-please config found, skipping"
