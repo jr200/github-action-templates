@@ -41,6 +41,12 @@ download_file() {
 lint_release_please_config() {
     local config="release-please-config.json"
 
+    if [ ! -f "$config" ] && [ -f ".release-please.local.json" ]; then
+        download_file "sync.sh" "sync.sh"
+        chmod +x "${SHARED_DIR}/sync.sh"
+        "${SHARED_DIR}/sync.sh"
+    fi
+
     [ -f "$config" ] || return 0
 
     download_file "lint-release-please-config.sh" "lint-release-please-config.sh"
