@@ -1,0 +1,4 @@
+# Node benchmark workflow — opt in for repos with pnpm/node benchmark
+# scripts that should run via the shared reusable bench workflow.
+includes:
+  - node-bench

@@ -46,6 +46,7 @@ Current groups:
 | `hygiene` | lint-pr-metadata, commitlint, drift-check, renovate, lint-version-downgrades | every repo that wants any CI |
 | `python` | ci-python | repo has `pyproject.toml` |
 | `node` | ci-node | repo has `package.json` |
+| `node-bench` | node-bench | repo has a Node/pnpm benchmark workflow and wants the shared manual benchmark caller |
 | `go` | ci-go | repo has `go.mod` |
 | `docker` | build-docker-image | repo publishes a docker image to ghcr.io |
 | `quarto-docs` | publish-quarto-docs | repo publishes a Quarto site from `docs` to `gh-pages` |
