@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   bench:
-    uses: jr200-labs/github-action-templates/.github/workflows/bench.yaml@master
+    uses: jr200-labs/github-action-templates/.github/workflows/node-bench.yaml@master
     with:
       runner: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
       warn-threshold: ${{ vars.BENCH_WARN_THRESHOLD || '10' }}

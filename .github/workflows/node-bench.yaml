@@ -1,4 +1,4 @@
-name: template-bench
+name: template-node-bench
 
 on:
   workflow_call:
