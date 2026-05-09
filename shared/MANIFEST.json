@@ -1,6 +1,6 @@
 {
   "$schema": "./MANIFEST.schema.json",
-  "_comment": "Declares files synced from this repo's shared/ dir into consumer repos. See sync.sh. Three destination modes: cache (→ .shared/, gitignored, re-fetched in CI), committed (→ repo root, tracked, drift-checked), and merged (→ repo root; sync policy decides whether the target is tracked or generated+gitignored; deep-merged via yq with optional repo-local override file).",
+  "_comment": "Declares files synced from this repo's shared/ dir into consumer repos. See sync.sh. Three destination modes: cache (→ .shared/, gitignored, re-fetched in CI), committed (→ repo root, tracked, drift-checked), and merged (→ repo root, tracked, drift-checked; deep-merged via yq with optional repo-local override file).",
   "common": {
     "committed": [],
     "cache": ["commitlint.config.mjs", "lint-release-please-config.sh"],

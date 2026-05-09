@@ -116,16 +116,14 @@ Separate from the workflow injection: `shared/sync.sh` syncs canonical lint conf
 
 ### Release-please config flow
 
-`release-please-config.json` is a generated artifact now, not committed source. Agents should treat the files like this:
+`release-please-config.json` is a committed merged file in consumer repos.
 
-- `.release-please.local.json` — committed source of truth for per-repo release-please overrides such as `release-type`
+- `.release-please.local.json` — committed per-repo override source for settings such as `release-type`
 - `shared/release-please-config.base.json` — template-owned base config in this repo
-- `release-please-config.json` — generated merge output at the consumer repo root, recreated by `./.shared/sync.sh`, and required to be gitignored
+- `release-please-config.json` — committed merge output at the consumer repo root, refreshed by `./.shared/sync.sh`
 
 Rules:
 
-- Never hand-edit `release-please-config.json` in a consumer repo
-- Never commit `release-please-config.json`; if it is tracked, remove it from the index
-- When changing release-please behavior for a consumer, edit `.release-please.local.json`, then run `./.shared/sync.sh`
-- Release-related CI should run `sync.sh` before linting or invoking release-please so the generated config matches the committed overlay
-- The shared lint fails if `release-please-config.json` is not listed in `.gitignore` for a repo using the shared release config flow
+- Do not hand-edit `release-please-config.json` in a consumer repo; update `.release-please.local.json` and re-run `./.shared/sync.sh`
+- Commit both `.release-please.local.json` and the refreshed `release-please-config.json`
+- Release-related CI should run `sync.sh` before linting so the checked-in merged config stays aligned with the committed overlay

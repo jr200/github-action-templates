@@ -22,9 +22,6 @@
 #                 {"source":"...","local":"...","target":"..."}. Merge order:
 #                 local first, base last (arrays append) — consumers override
 #                 template defaults via first-match-wins group ordering.
-#                 Some merged targets are generated build inputs rather than
-#                 committed source: release-please-config.json is regenerated on
-#                 demand and kept gitignored; .syncpackrc.yaml remains tracked.
 #
 # Offline tolerance:
 #   - SYNC_OFFLINE=1       → skip entirely, exit 0 (explicit opt-out)
@@ -40,19 +37,6 @@ SHARED_DIR=".shared"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}/shared"
 
 warn() { echo "sync: $*" >&2; }
-
-ensure_gitignore_entry() {
-    local entry="$1"
-    local alt_entry="/${entry}"
-
-    touch .gitignore
-    if grep -qxF "$entry" .gitignore 2>/dev/null || grep -qxF "$alt_entry" .gitignore 2>/dev/null; then
-        return 0
-    fi
-
-    echo "$entry" >> .gitignore
-    echo "added $entry to .gitignore"
-}
 
 if [ "${SYNC_OFFLINE:-0}" = "1" ]; then
     warn "SYNC_OFFLINE=1 — skipping shared config sync"
@@ -98,8 +82,12 @@ download_to() {
 }
 
 ensure_gitignore() {
-    ensure_gitignore_entry "${SHARED_DIR}/"
-    ensure_gitignore_entry "release-please-config.json"
+    if [ -f ".gitignore" ]; then
+        if ! grep -qxF "${SHARED_DIR}/" .gitignore 2>/dev/null; then
+            echo "${SHARED_DIR}/" >> .gitignore
+            echo "added ${SHARED_DIR}/ to .gitignore"
+        fi
+    fi
 }
 
 # Fetch manifest — if network down, skip the whole sync cleanly.
