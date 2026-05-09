@@ -126,13 +126,96 @@ jobs:
 
       - name: Run release-please
         id: release
-        uses: googleapis/release-please-action@v5
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          config-file: ${{ inputs.config-file }}
-          manifest-file: ${{ inputs.manifest-file }}
-          target-branch: ${{ inputs.target-branch }}
-          release-type: ${{ inputs.release-type }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          CONFIG_FILE: ${{ inputs.config-file }}
+          MANIFEST_FILE: ${{ inputs.manifest-file }}
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+          RELEASE_TYPE: ${{ inputs.release-type }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_please() {
+            local command="$1"
+            shift
+            npx --yes release-please@17.6.0 "$command" \
+              --token="$GITHUB_TOKEN" \
+              --repo-url="$GITHUB_REPOSITORY" \
+              --target-branch="$TARGET_BRANCH" \
+              --config-file="$CONFIG_FILE" \
+              --manifest-file="$MANIFEST_FILE" \
+              --local \
+              --local-path="." \
+              "$@"
+          }
+
+          release_type_args=()
+          if [ -n "$RELEASE_TYPE" ]; then
+            release_type_args+=("--release-type=$RELEASE_TYPE")
+          fi
+
+          before_file=$(mktemp)
+          after_file=$(mktemp)
+          trap 'rm -f "$before_file" "$after_file"' EXIT
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "$before_file"
+
+          release_please github-release "${release_type_args[@]}"
+          release_please release-pr "${release_type_args[@]}"
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "$after_file"
+
+          new_release=$(jq -cn --slurpfile before "$before_file" --slurpfile after "$after_file" '
+            ($before[0] // []) as $before_releases |
+            ($after[0] // []) as $after_releases |
+            ($before_releases | map(.id) | map(tostring)) as $before_ids |
+            $after_releases
+            | map(select((.id | tostring) as $id | $before_ids | index($id) | not))
+            | first // empty
+          ')
+
+          if [ -z "$new_release" ] || [ "$new_release" = "null" ]; then
+            {
+              echo "release_created=false"
+              echo "tag_name="
+              echo "sha="
+              echo "version="
+              echo "major="
+              echo "minor="
+              echo "patch="
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          tag_name=$(jq -r '.tag_name' <<<"$new_release")
+          version=${tag_name#v}
+          major=${version%%.*}
+          rest=${version#*.}
+          minor=${rest%%.*}
+          patch=${rest#*.}
+          patch=${patch%%[-+]*}
+
+          ref_json=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag_name}")
+          ref_type=$(jq -r '.object.type' <<<"$ref_json")
+          ref_sha=$(jq -r '.object.sha' <<<"$ref_json")
+          if [ "$ref_type" = "tag" ]; then
+            tag_obj=$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${ref_sha}")
+            release_sha=$(jq -r '.object.sha' <<<"$tag_obj")
+          else
+            release_sha="$ref_sha"
+          fi
+
+          {
+            echo "release_created=true"
+            echo "tag_name=$tag_name"
+            echo "sha=$release_sha"
+            echo "version=$version"
+            echo "major=$major"
+            echo "minor=$minor"
+            echo "patch=$patch"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Close stale release PRs after publish
         if: steps.release.outputs.release_created == 'true'
