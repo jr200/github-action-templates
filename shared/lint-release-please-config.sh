@@ -12,22 +12,23 @@
 #
 # Rule enforced:
 #   Every entry under .packages MUST set release-type explicitly
-#   (or inherit from a top-level `release-type`), and the effective
-#   release-type must not be the canonical placeholder value synced from
-#   github-action-templates. Marker-file cross-checks were tried and
-#   dropped — repos legitimately mix release-type=simple with a
-#   package.json (devDeps for commitlint etc), making the cross-check
-#   more false-positive than catch.
+#   (or inherit from a top-level `release-type`). Marker-file
+#   cross-checks were tried and dropped — repos legitimately mix
+#   release-type=simple with a package.json (devDeps for commitlint etc),
+#   making the cross-check more false-positive than catch.
 #
 # Usage: .shared/lint-release-please-config.sh [config-file]
 #   config-file defaults to release-please-config.json
 #
 # Distributed via shared/sync.sh (common.cache → .shared/) and invoked
-# by the release_please reusable workflow as a fail-fast pre-step.
+# by the release_please reusable workflow as a fail-fast pre-step. For
+# repos using the merged template config, failures should point directly
+# at .release-please.local.json so the next agent can repair the source
+# of truth instead of hand-editing the generated config.
 set -euo pipefail
 
 config="${1:-release-please-config.json}"
-placeholder="REQUIRED_REPLACE_WITH_VALID_RELEASE_TYPE"
+local_overlay=".release-please.local.json"
 
 if [ ! -f "$config" ]; then
   echo "lint-release-please-config: $config not present, skipping"
@@ -41,17 +42,29 @@ fi
 
 fail=0
 
+overlay_fix_hint() {
+  local cfg_basename
+  cfg_basename=$(basename "$config")
+
+  [ "$cfg_basename" = "release-please-config.json" ] || return 0
+  [ -f "$local_overlay" ] && return 0
+
+  cat <<EOF
+ For repos synced from jr200-labs/github-action-templates, '${config}' is a merged file.
+ Fix: create '${local_overlay}' with the repo's release type, then re-run './.shared/sync.sh'.
+ Example:
+   {
+     "release-type": "node"
+   }
+EOF
+}
+
 # release-please honours a top-level `release-type` as the default for
 # every entry under .packages that doesn't override it. The lint must
 # match that inheritance — otherwise repos with one top-level setting
 # and an empty `.` package (the canonical pattern for single-package
 # repos) get false-positives.
 top_level_type=$(jq -r '.["release-type"] // ""' "$config")
-
-if [ "$top_level_type" = "$placeholder" ]; then
-  echo "::error file=${config}::top-level release-type is still the canonical placeholder '${placeholder}'. release-please needs one release-type per package path in the manifest. Set a top-level release-type to act as the default for all packages, or set 'packages.<path>.release-type' per package (for example: go, python, node, simple)."
-  fail=1
-fi
 
 while IFS=$'\t' read -r pkg_dir release_type; do
   pkg_label="$pkg_dir"
@@ -63,16 +76,11 @@ while IFS=$'\t' read -r pkg_dir release_type; do
   fi
 
   if [ -z "$effective_type" ]; then
-    echo "::error file=${config}::package '${pkg_label}' missing release-type (no per-package value, no top-level default). release-please needs one release-type per package path in the manifest. Set a top-level release-type to act as the default for all packages, or set 'packages.<path>.release-type' per package. If omitted, release-please defaults to 'node' and can silently break non-Node repos."
+    echo "::error file=${config}::package '${pkg_label}' missing release-type (no per-package value, no top-level default). release-please needs one release-type per package path in the manifest. Set a top-level release-type to act as the default for all packages, or set 'packages.<path>.release-type' per package. If omitted, release-please defaults to 'node' and can silently break non-Node repos.$(overlay_fix_hint)"
     fail=1
     continue
   fi
 
-  if [ "$effective_type" = "$placeholder" ]; then
-    echo "::error file=${config}::package '${pkg_label}' still resolves to the canonical placeholder '${placeholder}'. release-please needs one release-type per package path in the manifest. Set a top-level release-type to act as the default for all packages, or set 'packages.<path>.release-type' per package (for example: go, python, node, simple)."
-    fail=1
-    continue
-  fi
 done < <(jq -r '.packages | to_entries[] | "\(.key)\t\(.value["release-type"] // "")"' "$config")
 
 if [ "$fail" = "1" ]; then

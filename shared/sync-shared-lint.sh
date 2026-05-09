@@ -38,6 +38,16 @@ download_file() {
     echo "synced: ${remote_path} -> ${local_path}"
 }
 
+lint_release_please_config() {
+    local config="release-please-config.json"
+
+    [ -f "$config" ] || return 0
+
+    download_file "lint-release-please-config.sh" "lint-release-please-config.sh"
+    chmod +x "${SHARED_DIR}/lint-release-please-config.sh"
+    "${SHARED_DIR}/lint-release-please-config.sh" "$config"
+}
+
 ensure_gitignore() {
     if [ -f ".gitignore" ]; then
         if ! grep -qxF ".shared/" .gitignore 2>/dev/null; then
@@ -67,6 +77,8 @@ esac
 # Always download self for future syncs
 download_file "sync-shared-lint.sh" "sync-shared-lint.sh"
 chmod +x "${SHARED_DIR}/sync-shared-lint.sh"
+
+lint_release_please_config
 
 ensure_gitignore
 
