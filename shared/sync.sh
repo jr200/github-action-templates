@@ -35,7 +35,6 @@ REPO="jr200-labs/github-action-templates"
 BRANCH="master"
 SHARED_DIR=".shared"
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}/shared"
-RELEASE_PLEASE_PLACEHOLDER="REQUIRED_REPLACE_WITH_VALID_RELEASE_TYPE"
 
 warn() { echo "sync: $*" >&2; }
 
@@ -79,19 +78,6 @@ download_to() {
         rm -f "${local_path}.tmp"
         warn "offline or fetch failed — skipped ${remote_path}"
         return 1
-    fi
-}
-
-warn_release_please_placeholder() {
-    local local_path="$1"
-
-    [ "$(basename "$local_path")" = "release-please-config.json" ] || return 0
-    [ -f "$local_path" ] || return 0
-
-    local release_type
-    release_type=$(jq -r '.["release-type"] // ""' "$local_path" 2>/dev/null || printf '')
-    if [ "$release_type" = "$RELEASE_PLEASE_PLACEHOLDER" ]; then
-        warn "${local_path} still has placeholder release-type '${RELEASE_PLEASE_PLACEHOLDER}' — release-please needs one release-type per package path in the manifest. Set a top-level release-type to act as the default for all packages, or set 'packages.<path>.release-type' per package (for example: go, python, node, simple) before pushing"
     fi
 }
 
@@ -173,7 +159,6 @@ for section in common $LANGS; do
     while IFS= read -r f; do
         [ -z "$f" ] && continue
         download_to "$f" "$f" || true
-        warn_release_please_placeholder "$f"
     done < <(get_files "$section" "committed")
 done
 
