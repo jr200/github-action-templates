@@ -43,6 +43,17 @@ jobs:
           mkdir -p .shared
           curl -sfL "https://raw.githubusercontent.com/jr200-labs/github-action-templates/master/shared/.golangci.yml" \
             -o .shared/.golangci.yml
+          curl -sfL "https://raw.githubusercontent.com/jr200-labs/github-action-templates/master/shared/lint-release-please-config.sh" \
+            -o .shared/lint-release-please-config.sh
+          chmod +x .shared/lint-release-please-config.sh
+
+      - name: Lint release-please config
+        run: |
+          if [ -f release-please-config.json ] || [ -f .release-please.local.json ]; then
+            .shared/lint-release-please-config.sh release-please-config.json
+          else
+            echo "No release-please config found, skipping"
+          fi
 
       - name: Lint
         uses: golangci/golangci-lint-action@v9

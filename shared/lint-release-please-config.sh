@@ -50,12 +50,13 @@ overlay_fix_hint() {
   [ -f "$local_overlay" ] && return 0
 
   cat <<EOF
-  For repos synced from jr200-labs/github-action-templates, '${config}' is a merged file.
-  Fix: create '${local_overlay}' with the repo's release type, then re-run './.shared/sync.sh'.
+ For repos synced from jr200-labs/github-action-templates, '${config}' is a merged file.
+ Fix: create '${local_overlay}' with the correct release-type for this repo, then re-run './.shared/sync.sh'.
  Example:
    {
-     "release-type": "node"
+     "release-type": "simple"
    }
+ Common values include: node, python, go, simple.
 EOF
 }
 
