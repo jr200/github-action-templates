@@ -154,6 +154,10 @@ jobs:
           # "Configure Renovate" PR.
           RENOVATE_ONBOARDING: 'false'
           RENOVATE_REQUIRE_CONFIG: 'required'
+          # Allow tightly-scoped repo-local post-upgrade automation used by
+          # consumers to refresh generated reference artifacts in the same
+          # Renovate PR as the dependency bump.
+          RENOVATE_ALLOWED_COMMANDS: '^python3 scripts/refresh_reference_values\.py$'
           # Optional dry-run for debugging without creating branches/PRs.
           RENOVATE_DRY_RUN: ${{ inputs.dry-run }}
           # Structured JSON report (problems[] = WARN/ERROR messages).
@@ -182,6 +186,7 @@ jobs:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_ONBOARDING: 'false'
           RENOVATE_REQUIRE_CONFIG: 'required'
+          RENOVATE_ALLOWED_COMMANDS: '^python3 scripts/refresh_reference_values\.py$'
           RENOVATE_REPORT_TYPE: 'file'
           RENOVATE_REPORT_PATH: /out/pass2.report.json
 
