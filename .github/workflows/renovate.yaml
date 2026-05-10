@@ -53,7 +53,7 @@ on:
         description: Renovate LOG_LEVEL — info | debug | trace
         required: false
         type: string
-        default: info
+        default: debug
       dry-run:
         description: Renovate dry-run mode (full | extract | lookup | empty for normal)
         required: false
