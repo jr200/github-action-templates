@@ -109,7 +109,7 @@ jobs:
         # permission key for /repos/*/dependabot/alerts and produces
         # a perpetual "Cannot access vulnerability alerts" WARN.
         if: ${{ inputs.client-id != '' || vars.INTEGRATION_CLIENT_ID != '' }}
-        uses: actions/create-github-app-token@v3.1.1
+        uses: actions/create-github-app-token@v3.2.0
         with:
           client-id: ${{ inputs.client-id || vars.INTEGRATION_CLIENT_ID }}
           private-key: ${{ secrets.INTEGRATION_APP_PRIVATE_KEY }}
