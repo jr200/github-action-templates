@@ -62,10 +62,14 @@ jobs:
           filters: |
             bundle:
               - 'src/**'
+              - 'apps/**'
+              - 'packages/**'
               - 'public/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'next.config.*'
+              - 'vite.config.*'
+              - '**/vite.config.*'
               - '.size-limit.json'
 
   unit:
