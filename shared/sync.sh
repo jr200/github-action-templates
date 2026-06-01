@@ -32,9 +32,9 @@
 set -uo pipefail
 
 REPO="jr200-labs/github-action-templates"
-BRANCH="master"
+DEFAULT_REF="master"
 SHARED_DIR=".shared"
-BASE_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}/shared"
+CONFIG=".github/.shared-config.yaml"
 
 warn() { echo "sync: $*" >&2; }
 
@@ -51,6 +51,19 @@ if ! command -v jq >/dev/null 2>&1; then
     warn "jq not found — skipping shared config sync"
     exit 0
 fi
+
+CONFIG_REF=""
+if [ -f "$CONFIG" ]; then
+    CONFIG_REF=$(sed -nE 's/^[[:space:]]*ref:[[:space:]]*["'\'']?([^"'\''][^[:space:]"'\'']*).*$/\1/p' "$CONFIG" | head -n 1)
+fi
+if [ -n "${SYNC_REF:-}" ]; then
+    REF="$SYNC_REF"
+elif [ -n "$CONFIG_REF" ]; then
+    REF="$CONFIG_REF"
+else
+    REF="$DEFAULT_REF"
+fi
+BASE_URL="${SYNC_BASE_URL:-https://raw.githubusercontent.com/${REPO}/${REF}/shared}"
 
 detect_languages() {
     # Emit every language whose marker file is present. Polyglot repos

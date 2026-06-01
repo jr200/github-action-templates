@@ -16,12 +16,15 @@ Reusable GitHub Actions workflows + canonical caller workflows for jr200-labs / 
 
 ```yaml
 # .github/.shared-config.yaml
+ref: shared-v0.1.0
 workflows:
   - hygiene        # commitlint + lint-pr-metadata + drift-check + renovate + version downgrade guard
   - go             # ci-go
   - docker         # build-docker-image
   - release        # release-please
 ```
+
+`ref` pins the canonical consumer files to a `github-action-templates` tag. Tags for this surface use `shared-vX.Y.Z`; consumers should move between them through Renovate PRs, not by tracking `master`. `SYNC_REF=<branch-or-tag> ./scripts/sync-shared` is only for one-off diagnostics or bootstrapping.
 
 No string substitution, no archetype — files are verbatim copies. Per-repo divergence is captured by *which groups* the repo declares, not by parameters within a group.
 
@@ -70,7 +73,7 @@ Current groups:
 
 ## Updating an existing canonical workflow
 
-Edit `consumers/workflows/<name>.yaml` and merge to `master`. Every consuming repo's `drift-check` job goes red on its next CI run until the maintainer runs `sync-shared` and PRs the result. The drift is the migration trigger — no batch updates from outside.
+Edit `consumers/workflows/<name>.yaml` and merge to `master`, then tag the shared surface with the next `shared-vX.Y.Z` release. Consumer repos pin `.github/.shared-config.yaml` to one of those tags. Renovate watches that pin and opens a dedicated PR per consumer repo; the generated drift-repair workflow is the fallback if a checked-in caller file falls behind the pinned ref.
 
 ## Bespoke workflows
 

@@ -7,6 +7,10 @@ Reusable GitHub Actions workflows + canonical caller workflows shared across con
 - **`.github/workflows/`** — *reusable* workflows (`workflow_call`). Each implements one piece of CI/release machinery. Consumer repos call these via `uses:`.
 - **`consumers/`** — *caller* workflows. Each consuming repo declares groups in `.github/.shared-config.yaml`; `scripts/sync-shared` copies the matching caller files verbatim into `.github/workflows/`. A `drift-check` job in the `hygiene` group fails CI on any divergence. **Don't hand-author caller workflows.** See [AGENTS.md](AGENTS.md) for the full pattern.
 
+Consumer repos should pin `.github/.shared-config.yaml` to a `shared-vX.Y.Z`
+tag via `ref:`. Renovate tracks that pin and opens dedicated update PRs, so
+shared workflow drift does not ride along with unrelated feature changes.
+
 ## Merging is human-only
 
 Both consumer orgs (`whengas/`, `jr200-labs/`) enforce default-branch protection centrally: rulesets require an approving review from a non-self reviewer and repo settings disable auto-merge + enable branch auto-delete on merge. The `lint-no-auto-merge` workflow in `hygiene` fails CI if any caller workflow invokes `gh pr merge`, `--auto-merge`, or `gh pr review --approve`. Bots build, test, and publish artifacts; humans merge.
