@@ -6,6 +6,7 @@ includes:
   - lint-pr-metadata
   - commitlint
   - drift-check
+  - sync-shared-drift
   - renovate
   - lint-no-auto-merge
   - lint-version-downgrades
