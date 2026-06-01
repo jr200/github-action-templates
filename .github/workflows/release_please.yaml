@@ -134,6 +134,54 @@ jobs:
           target-branch: ${{ inputs.target-branch }}
           release-type: ${{ inputs.release-type }}
 
+      - name: Set up uv for release PR lockfiles
+        if: steps.release.outputs.release_created != 'true'
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Refresh uv.lock on release PR
+        if: steps.release.outputs.release_created != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          head_ref="release-please--branches--${TARGET_BRANCH}"
+          pr_json=$(
+            gh pr list \
+              --repo "${GITHUB_REPOSITORY}" \
+              --state open \
+              --head "${head_ref}" \
+              --json number,headRefName \
+              --jq '.[0] // empty'
+          )
+          if [ -z "${pr_json}" ]; then
+            echo "No open release PR found for ${head_ref}; skipping uv.lock refresh."
+            exit 0
+          fi
+
+          git fetch origin "${head_ref}"
+          git checkout -B "${head_ref}" "origin/${head_ref}"
+
+          if [ ! -f pyproject.toml ] || [ ! -f uv.lock ]; then
+            echo "No pyproject.toml + uv.lock pair found; skipping uv.lock refresh."
+            exit 0
+          fi
+
+          uv lock
+          if git diff --quiet -- uv.lock; then
+            echo "uv.lock already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add uv.lock
+          git commit -m "chore: update release lockfile"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin "HEAD:${head_ref}"
+
       - name: Close stale release PRs after publish
         if: steps.release.outputs.release_created == 'true'
         env:
