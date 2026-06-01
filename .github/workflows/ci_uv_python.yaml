@@ -56,9 +56,9 @@ jobs:
         id: check-git-auth
         run: |
           if [ -n "$CLIENT_ID" ] && [ -n "$APP_KEY" ]; then
-            echo "available=true" >> $GITHUB_OUTPUT
+            echo "available=true" >> "$GITHUB_OUTPUT"
           else
-            echo "available=false" >> $GITHUB_OUTPUT
+            echo "available=false" >> "$GITHUB_OUTPUT"
           fi
         env:
           CLIENT_ID: ${{ secrets.client_id }}
@@ -84,6 +84,9 @@ jobs:
       - name: Install Python and dependencies
         run: |
           uv python install
+          if [ -f uv.lock ]; then
+            uv lock --check
+          fi
           uv sync --group dev ${{ inputs.uv-sync-args }}
 
       - name: Verify version matches git tag
