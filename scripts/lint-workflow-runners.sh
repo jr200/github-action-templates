@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lint GitHub Actions workflows for hardcoded runner OS in `runs-on`.
+# Lint GitHub Actions workflows for hardcoded runner OS labels.
 #
 # Policy: every `runs-on` must resolve through the org-level
 # `vars.RUNNER_PROFILE` / `vars.RUNNER_PROFILES` indirection, so the
@@ -53,10 +53,10 @@ if [[ ${#files[@]} -eq 0 ]]; then
 fi
 
 # Pattern matches the hardcoded-OS literal family at the start of a
-# runs-on value. Quoted variants (runs-on: 'ubuntu-latest' or "...")
-# are also caught. Leading whitespace required so we don't match
-# stray occurrences inside strings/comments.
-bad_pattern='^[[:space:]]*runs-on:[[:space:]]*["'"'"']?(ubuntu|macos|windows)[-_]'
+# runner label. Quoted variants (runs-on: 'ubuntu-latest' or "...")
+# are also caught. The build-(os|runner) variants catch workflow
+# matrices that feed a later `runs-on: ${{ matrix.* }}`.
+bad_pattern='^[[:space:]]*runs-on:[[:space:]]*["'"'"']?(ubuntu|macos|windows)[-_]|^[[:space:]]*(-[[:space:]]*)?build-(os|runner):[[:space:]]*["'"'"']?(ubuntu|macos|windows)[-_]|"build-(os|runner)"[[:space:]]*:[[:space:]]*"(ubuntu|macos|windows)[-_]'
 
 fail_count=0
 for f in "${files[@]}"; do
@@ -70,7 +70,7 @@ done
 
 if (( fail_count > 0 )); then
   echo "" >&2
-  echo "Hardcoded runner OS found. Replace with:" >&2
+  echo "Hardcoded runner OS found. Replace direct or matrix runner labels with:" >&2
   echo "  runs-on: \${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}" >&2
   echo "(or include 'inputs.runner ||' in reusable workflows)" >&2
   exit 1

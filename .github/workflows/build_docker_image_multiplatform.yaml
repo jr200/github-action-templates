@@ -26,7 +26,7 @@ on:
         required: true
         type: string
       runner:
-        description: 'Runner label for non-build jobs (e.g. ubuntu-latest or self-hosted). Build jobs use platform-specific runners from the matrix.'
+        description: 'Runner label override for all jobs. Defaults to the caller org RUNNER_PROFILE heavy/default tiers.'
         required: false
         type: string
         default: ''
@@ -75,8 +75,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   DEFAULT_UNIVERSE: |-
     [
-      {"platform": "linux/amd64", "os": "linux", "architecture": "amd64", "build-os": "ubuntu-latest"},
-      {"platform": "linux/arm64", "os": "linux", "architecture": "arm64", "build-os": "ubuntu-24.04-arm"}
+      {"platform": "linux/amd64", "os": "linux", "architecture": "amd64", "build-runner": "${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].heavy || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}"},
+      {"platform": "linux/arm64", "os": "linux", "architecture": "arm64", "build-runner": "${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].heavy || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}"}
     ]
 
 jobs:
@@ -108,7 +108,7 @@ jobs:
   build:
     name: Build ${{ matrix.platform }} Image
     needs: setup-matrix
-    runs-on: ${{ matrix.build-os }}
+    runs-on: ${{ matrix.build-runner }}
     strategy:
       fail-fast: false
       matrix:
