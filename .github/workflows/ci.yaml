@@ -83,6 +83,13 @@ jobs:
             -shellcheck= \
             -ignore 'peaceiris/actions-gh-pages@v3'
 
+  validate-shared-sync:
+    runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Test shared sync scripts
+        run: ./scripts/test-shared-sync.sh
+
   validate-renovate-pins:
     # Enforces the no-forever-pin policy on default.json packageRules.
     # Every version-scoped disable (matchPackageNames + enabled: false)

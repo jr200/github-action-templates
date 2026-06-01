@@ -92,6 +92,19 @@
   "customManagers": [
     {
       "customType": "regex",
+      "description": "Bump shared workflow/config refs pinned in consumer `.github/.shared-config.yaml` files. Refs use github-action-templates tags named `shared-vX.Y.Z` so drift repairs land as dedicated Renovate PRs instead of piggybacking onto unrelated feature work.",
+      "managerFilePatterns": [
+        "/(^|/)\\.github/\\.shared-config\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "ref:\\s*(?<currentValue>shared-v[0-9]+\\.[0-9]+\\.[0-9]+)"
+      ],
+      "depNameTemplate": "jr200-labs/github-action-templates",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "regex:^shared-v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$"
+    },
+    {
+      "customType": "regex",
       "description": "Bump private git-pinned Python deps in pep621 pyproject.toml — e.g. '<pkg>[extras] @ git+https://github.com/<org>/<pkg>.git@v0.7.3'",
       "managerFilePatterns": ["/(^|/)pyproject\\.toml$/"],
       "matchStrings": [
