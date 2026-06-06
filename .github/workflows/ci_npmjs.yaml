@@ -28,6 +28,11 @@ on:
         required: false
         type: boolean
         default: false
+      minimum-release-age:
+        description: "pnpm minimumReleaseAge for normal CI installs. Keep at 0 so tests/builds are not blocked by advisory package-age policy."
+        required: false
+        type: string
+        default: "0"
       runner:
         description: 'Runner label (e.g. ubuntu-latest or self-hosted)'
         required: false
@@ -91,6 +96,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: ${{ inputs.minimum-release-age }}
 
       # Speeds up Next.js rebuilds. No-op for non-Next repos (path simply missing).
       - name: Cache Next.js build
@@ -200,6 +207,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: ${{ inputs.minimum-release-age }}
 
       - name: Integration tests
         run: |
@@ -232,6 +241,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: ${{ inputs.minimum-release-age }}
 
       - name: Build app
         run: |
