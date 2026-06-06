@@ -1,0 +1,49 @@
+name: template-check-pnpm-package-age
+
+on:
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: "checkout ref"
+        required: false
+        type: string
+        default: ""
+      node-version:
+        description: "node version"
+        required: false
+        type: string
+        default: "22"
+      runner:
+        description: "Runner label (e.g. ubuntu-latest or self-hosted)"
+        required: false
+        type: string
+        default: ""
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  package-age:
+    runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.checkout-ref }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        # Version read from package.json "packageManager" field.
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: pnpm
+
+      - name: Check package age policy
+        run: pnpm install --frozen-lockfile
