@@ -161,6 +161,9 @@ jobs:
           RENOVATE_ALLOWED_COMMANDS: '^\./\.renovate/[A-Za-z0-9_.-]+\.py$'
           # Optional dry-run for debugging without creating branches/PRs.
           RENOVATE_DRY_RUN: ${{ inputs.dry-run }}
+          # Normal Renovate lockfile maintenance must not enforce the
+          # package-age policy. That belongs to check_pnpm_package_age.yaml.
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: '0'
           # Structured JSON report (problems[] = WARN/ERROR messages).
           # Written into /out (runner's ${GITHUB_WORKSPACE}/.renovate-out,
           # 0777, mounted above) so the post-step can read it.
@@ -188,6 +191,7 @@ jobs:
           RENOVATE_ONBOARDING: 'false'
           RENOVATE_REQUIRE_CONFIG: 'required'
           RENOVATE_ALLOWED_COMMANDS: '^\./\.renovate/[A-Za-z0-9_.-]+\.py$'
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: '0'
           RENOVATE_REPORT_TYPE: 'file'
           RENOVATE_REPORT_PATH: /out/pass2.report.json
 
@@ -220,7 +224,7 @@ jobs:
               | map(select(. != null)) | unique | .[]
             ' "$report")
             results=$(jq -r '
-              .repositories[]?
+              [., .repositories[]?][]
               | select(.result // "" | test("error"))
               | "result=\(.result) on repository=\(.repository // "?")"
             ' "$report")
