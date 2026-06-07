@@ -115,6 +115,18 @@ jobs:
           private-key: ${{ secrets.INTEGRATION_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
+      - name: Setup uv for Python post-upgrade tasks
+        if: ${{ hashFiles('pyproject.toml') != '' }}
+        uses: astral-sh/setup-uv@v8.2.0
+
+      - name: Configure git HTTPS auth for post-upgrade tasks
+        shell: bash
+        run: |
+          printf 'machine github.com\nlogin x-access-token\npassword %s\n' "$RENOVATE_GITHUB_TOKEN" > ~/.netrc
+          chmod 0600 ~/.netrc
+        env:
+          RENOVATE_GITHUB_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+
       - name: Prepare report dir (world-writable so renovate's `node` user can write)
         shell: bash
         run: |
@@ -158,8 +170,9 @@ jobs:
           # Allow tightly-scoped repo-local Renovate helpers. Keep executable
           # post-upgrade automation under .renovate/ so repositories can use
           # documented metadata-driven helper scripts without enabling broad
-          # command execution.
-          RENOVATE_ALLOWED_COMMANDS: '^(?:\./\.renovate/[A-Za-z0-9_.-]+\.py|\./scripts/sync-shared)$'
+          # command execution. `uv lock` is allowed exactly so Python
+          # dependency PRs can keep uv.lock synchronized with pyproject.toml.
+          RENOVATE_ALLOWED_COMMANDS: '^(?:uv lock|\./\.renovate/[A-Za-z0-9_.-]+\.py|\./scripts/sync-shared)$'
           # Optional dry-run for debugging without creating branches/PRs.
           RENOVATE_DRY_RUN: ${{ inputs.dry-run }}
           # Normal Renovate lockfile maintenance must not enforce the
@@ -195,7 +208,7 @@ jobs:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_ONBOARDING: 'false'
           RENOVATE_REQUIRE_CONFIG: 'required'
-          RENOVATE_ALLOWED_COMMANDS: '^(?:\./\.renovate/[A-Za-z0-9_.-]+\.py|\./scripts/sync-shared)$'
+          RENOVATE_ALLOWED_COMMANDS: '^(?:uv lock|\./\.renovate/[A-Za-z0-9_.-]+\.py|\./scripts/sync-shared)$'
           PNPM_CONFIG_MINIMUM_RELEASE_AGE: '0'
           RENOVATE_CUSTOM_ENV_VARIABLES: '{"PNPM_CONFIG_MINIMUM_RELEASE_AGE":"0"}'
           RENOVATE_REPORT_TYPE: 'file'
