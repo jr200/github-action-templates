@@ -163,3 +163,4 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.npmjs_api_token }}
           NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: "0"
