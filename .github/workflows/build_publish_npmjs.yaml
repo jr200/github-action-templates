@@ -79,8 +79,14 @@ jobs:
           fi
 
       - name: Configure npm for pnpm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.npmjs_api_token }}
         run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.npmjs_api_token }}" > ~/.npmrc
+          {
+            echo "registry=https://registry.npmjs.org/"
+            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}"
+          } > .npmrc
+          cp .npmrc ~/.npmrc
 
       - name: Pre-publish diagnostics
         continue-on-error: true
@@ -145,4 +151,5 @@ jobs:
       - name: publish to npmjs
         run: ${{ steps.build-command.outputs.publish_command }}
         env:
-          NPM_TOKEN: ${{ secrets.npmjs_api_token }}
+          NODE_AUTH_TOKEN: ${{ secrets.npmjs_api_token }}
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/.npmrc
