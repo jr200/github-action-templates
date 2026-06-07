@@ -70,12 +70,12 @@ Current groups:
 2. Add `consumers/groups/<group-name>.yaml` listing it under `includes:`.
 3. Update this doc.
 4. Open PR. Merge.
-5. The `publish-shared-ref` workflow automatically tags the merged commit with the next `shared-vX.Y.Z` ref.
+5. The `release-shared-ref` workflow automatically tags the merged commit with the next `shared-vX.Y.Z` ref and publishes a GitHub Release with generated notes.
 6. Repos opt in by adding `<group-name>` to their `.github/.shared-config.yaml`, bumping `ref:` to the new shared tag, and running `sync-shared`.
 
 ## Updating an existing canonical workflow
 
-Edit `consumers/workflows/<name>.yaml` and merge to `master`. The `publish-shared-ref` workflow tags the shared surface with the next `shared-vX.Y.Z` ref when `consumers/**` or `shared/**` changed. Consumer repos pin `.github/.shared-config.yaml` to one of those tags. Renovate watches that pin and opens a dedicated PR per consumer repo; the generated drift-repair workflow is the fallback if a checked-in caller file falls behind the pinned ref.
+Edit `consumers/workflows/<name>.yaml` and merge to `master`. The `release-shared-ref` workflow tags the shared surface with the next `shared-vX.Y.Z` ref and publishes a GitHub Release with generated notes when `consumers/**` or `shared/**` changed. Consumer repos pin `.github/.shared-config.yaml` to one of those tags. Renovate watches that pin and opens a dedicated PR per consumer repo; the generated drift-repair workflow is the fallback if a checked-in caller file falls behind the pinned ref.
 
 ## Bespoke workflows
 
