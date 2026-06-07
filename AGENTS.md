@@ -50,6 +50,7 @@ Current groups:
 | `python` | ci-python | repo has `pyproject.toml` |
 | `node` | ci-node | repo has `package.json` |
 | `node-bench` | node-bench | repo has a Node/pnpm benchmark workflow and wants the shared manual benchmark caller |
+| `npm-package` | publish-npm-package | repo publishes a Node package to npmjs.com on release (needs `secrets.NPMJS_API_TOKEN`) |
 | `go` | ci-go | repo has `go.mod` |
 | `docker` | build-docker-image | repo publishes a docker image to ghcr.io |
 | `quarto-docs` | publish-quarto-docs | repo publishes a Quarto site from `docs` to `gh-pages` |
@@ -69,11 +70,12 @@ Current groups:
 2. Add `consumers/groups/<group-name>.yaml` listing it under `includes:`.
 3. Update this doc.
 4. Open PR. Merge.
-5. Repos opt in by adding `<group-name>` to their `.github/.shared-config.yaml` and running `sync-shared`.
+5. The `publish-shared-ref` workflow automatically tags the merged commit with the next `shared-vX.Y.Z` ref.
+6. Repos opt in by adding `<group-name>` to their `.github/.shared-config.yaml`, bumping `ref:` to the new shared tag, and running `sync-shared`.
 
 ## Updating an existing canonical workflow
 
-Edit `consumers/workflows/<name>.yaml` and merge to `master`, then tag the shared surface with the next `shared-vX.Y.Z` release. Consumer repos pin `.github/.shared-config.yaml` to one of those tags. Renovate watches that pin and opens a dedicated PR per consumer repo; the generated drift-repair workflow is the fallback if a checked-in caller file falls behind the pinned ref.
+Edit `consumers/workflows/<name>.yaml` and merge to `master`. The `publish-shared-ref` workflow tags the shared surface with the next `shared-vX.Y.Z` ref when `consumers/**` or `shared/**` changed. Consumer repos pin `.github/.shared-config.yaml` to one of those tags. Renovate watches that pin and opens a dedicated PR per consumer repo; the generated drift-repair workflow is the fallback if a checked-in caller file falls behind the pinned ref.
 
 ## Bespoke workflows
 

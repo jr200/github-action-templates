@@ -1,0 +1,51 @@
+name: publish-shared-ref
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - consumers/**
+      - shared/**
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-shared-ref
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Publish next shared ref
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --tags origin 'refs/tags/shared-v*:refs/tags/shared-v*'
+
+          if git tag --points-at HEAD | grep -Eq '^shared-v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "HEAD is already tagged with a shared ref; nothing to publish."
+            exit 0
+          fi
+
+          latest="$(git tag --list 'shared-v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | head -1)"
+          if [ -z "$latest" ]; then
+            next="shared-v0.1.0"
+          else
+            version="${latest#shared-v}"
+            IFS=. read -r major minor patch <<<"$version"
+            next="shared-v${major}.${minor}.$((patch + 1))"
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$next" -m "Shared workflow surface ${next}"
+          git push origin "refs/tags/${next}"
+          echo "Published ${next}"
