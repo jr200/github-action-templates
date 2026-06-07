@@ -87,6 +87,19 @@
       "description": "Disable Renovate's built-in helm-values manager. We use a custom regex manager (above) that targets `services/.../env/.*\\.yaml$` specifically, so the built-in's broader file globbing duplicates lookups and produces conflicting bump attempts.",
       "matchManagers": ["helm-values"],
       "enabled": false
+    },
+    {
+      "description": "When the shared workflow ref changes, render the generated consumer workflows in the same Renovate PR. Bumping only `.github/.shared-config.yaml` leaves checked-in workflows stale and makes every later PR fail drift-check.",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["jr200-labs/github-action-templates"],
+      "postUpgradeTasks": {
+        "commands": ["./scripts/sync-shared"],
+        "fileFilters": [
+          ".github/.shared-config.yaml",
+          ".github/workflows/*.yaml"
+        ],
+        "executionMode": "branch"
+      }
     }
   ],
   "customManagers": [
