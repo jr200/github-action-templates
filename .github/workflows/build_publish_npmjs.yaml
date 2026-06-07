@@ -137,7 +137,7 @@ jobs:
       - name: build publish command
         id: build-command
         run: |
-          BASE_CMD="pnpm publish --access public --no-git-checks"
+          BASE_CMD="npm publish --access public"
           
           if [ "${{ inputs.pnpm-publish-args }}" != "null" ] && [ "${{ inputs.pnpm-publish-args }}" != "" ]; then
             PUBLISH_CMD="$BASE_CMD ${{ inputs.pnpm-publish-args }}"
