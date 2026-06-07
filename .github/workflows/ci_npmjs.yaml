@@ -153,6 +153,8 @@ jobs:
           else
             echo "No syncpack config found, skipping"
           fi
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: ${{ inputs.minimum-release-age }}
 
       - name: Lint
         run: |
@@ -161,6 +163,8 @@ jobs:
           else
             echo "No lint script found, skipping"
           fi
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: ${{ inputs.minimum-release-age }}
 
       - name: Test
         run: |
@@ -169,6 +173,8 @@ jobs:
           else
             echo "No test script found, skipping"
           fi
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: ${{ inputs.minimum-release-age }}
 
       - name: Build
         run: |
@@ -177,6 +183,8 @@ jobs:
           else
             echo "No build script found, skipping"
           fi
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: ${{ inputs.minimum-release-age }}
 
       - name: Knip (dead-code detection)
         run: |
@@ -185,6 +193,8 @@ jobs:
           else
             echo "No knip script found, skipping"
           fi
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: ${{ inputs.minimum-release-age }}
 
   integration:
     if: inputs.run-integration
@@ -217,6 +227,8 @@ jobs:
           else
             echo "No test:integration script found, skipping"
           fi
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: ${{ inputs.minimum-release-age }}
 
   size-limit:
     if: inputs.run-size-limit && github.event_name == 'pull_request' && needs.changes.outputs.bundle == 'true'
@@ -251,6 +263,8 @@ jobs:
           else
             echo "No build script found, skipping"
           fi
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: ${{ inputs.minimum-release-age }}
 
       - name: Check size limit
         run: |
@@ -259,3 +273,5 @@ jobs:
           else
             echo "No size script found, skipping"
           fi
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: ${{ inputs.minimum-release-age }}
