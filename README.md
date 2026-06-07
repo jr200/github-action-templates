@@ -10,8 +10,9 @@ Reusable GitHub Actions workflows + canonical caller workflows shared across con
 Consumer repos should pin `.github/.shared-config.yaml` to a `shared-vX.Y.Z`
 tag via `ref:`. Renovate tracks that pin and opens dedicated update PRs, so
 shared workflow drift does not ride along with unrelated feature changes.
-GAT publishes the next `shared-vX.Y.Z` tag automatically when canonical
-consumer workflows or shared files change on `master`.
+GAT releases the next `shared-vX.Y.Z` tag automatically when canonical
+consumer workflows or shared files change on `master`, including a GitHub
+Release with generated notes.
 
 ## Merging is human-only
 
