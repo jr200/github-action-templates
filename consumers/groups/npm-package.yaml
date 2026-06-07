@@ -1,0 +1,6 @@
+# npm package artifact group — opt in if the repo publishes a
+# JavaScript/TypeScript package to npmjs.com on release. Triggered by
+# `release-published` repository dispatch from the canonical
+# release-please.yaml. Consumer must set the NPMJS_API_TOKEN secret.
+includes:
+  - publish-npm-package
