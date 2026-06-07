@@ -141,6 +141,7 @@ jobs:
           # workspace; the prepared 0777 subdir sidesteps that.
           docker-volumes: |
             ${{ github.workspace }}/.renovate-out:/out
+          env-regex: '^(?:RENOVATE_\w+|LOG_LEVEL|GITHUB_COM_TOKEN|NODE_OPTIONS|NO_COLOR|(?:HTTPS?|NO)_PROXY|(?:https?|no)_proxy|PNPM_CONFIG_MINIMUM_RELEASE_AGE)$'
         env:
           LOG_LEVEL: ${{ inputs.log-level }}
           # Install Renovate as a node package instead of docker run.
@@ -184,6 +185,7 @@ jobs:
           docker-network: host
           docker-volumes: |
             ${{ github.workspace }}/.renovate-out:/out
+          env-regex: '^(?:RENOVATE_\w+|LOG_LEVEL|GITHUB_COM_TOKEN|NODE_OPTIONS|NO_COLOR|(?:HTTPS?|NO)_PROXY|(?:https?|no)_proxy|PNPM_CONFIG_MINIMUM_RELEASE_AGE)$'
         env:
           LOG_LEVEL: ${{ inputs.log-level }}
           RENOVATE_BINARY_SOURCE: install
