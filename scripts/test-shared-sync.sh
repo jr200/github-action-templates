@@ -35,10 +35,16 @@ workflows:
   - hygiene
 YAML
 touch "$lint_repo/package.json"
+cat > "$lint_repo/pnpm-workspace.yaml" <<'YAML'
+packages:
+  - "."
+YAML
 (
     cd "$lint_repo"
     SYNC_BASE_URL="file://$ROOT/shared" ./sync.sh node
     test -f .shared/eslint.config.mjs
     test -f release-please-config.json
     test -f .syncpackrc.yaml
+    grep -qx "packages:" pnpm-workspace.yaml
+    grep -qx "minimumReleaseAge: 0" pnpm-workspace.yaml
 )
