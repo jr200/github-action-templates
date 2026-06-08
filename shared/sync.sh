@@ -103,6 +103,37 @@ ensure_gitignore() {
     fi
 }
 
+ensure_pnpm_workspace_defaults() {
+    local workspace_file="pnpm-workspace.yaml"
+
+    [ -f "$workspace_file" ] || return 0
+
+    if ! command -v yq >/dev/null 2>&1; then
+        warn "yq not found — skipped ${workspace_file} minimumReleaseAge default"
+        return 0
+    fi
+
+    if yq -e '.minimumReleaseAge == 0' "$workspace_file" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if yq '.minimumReleaseAge = 0' "$workspace_file" > "${workspace_file}.tmp" 2>/dev/null; then
+        mv "${workspace_file}.tmp" "$workspace_file"
+        echo "updated: ${workspace_file} minimumReleaseAge -> 0"
+    else
+        rm -f "${workspace_file}.tmp"
+        warn "failed to update ${workspace_file} minimumReleaseAge default"
+    fi
+}
+
+has_language() {
+    local needle="$1" lang
+    for lang in $LANGS; do
+        [ "$lang" = "$needle" ] && return 0
+    done
+    return 1
+}
+
 # Fetch manifest — if network down, skip the whole sync cleanly.
 MANIFEST_JSON=$(curl -sfL --max-time 10 "${BASE_URL}/MANIFEST.json" 2>/dev/null) || {
     warn "cannot fetch MANIFEST.json (offline?) — skipping sync"
@@ -196,6 +227,10 @@ done
 download_to "sync.sh" "${SHARED_DIR}/sync.sh" || true
 [ -f "${SHARED_DIR}/sync.sh" ] && chmod +x "${SHARED_DIR}/sync.sh"
 [ -f "${SHARED_DIR}/lint-release-please-config.sh" ] && chmod +x "${SHARED_DIR}/lint-release-please-config.sh"
+
+if has_language node; then
+    ensure_pnpm_workspace_defaults
+fi
 
 ensure_gitignore
 
