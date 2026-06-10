@@ -58,10 +58,8 @@ jobs:
           private-key: ${{ secrets.app_private_key }}
           owner: ${{ github.repository_owner }}
 
-      - name: Install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
+      - name: Check yq
+        run: yq --version
 
       - name: Discover dependent Python services
         id: discover
@@ -180,10 +178,17 @@ jobs:
       - name: Determine result
         id: result
         run: |
+          DISCOVER_RESULT="${{ needs.discover-services.result }}"
           TEST_RESULT="${{ needs.test-service.result }}"
           COUNT="${{ needs.discover-services.outputs.count }}"
+          MATRIX='${{ needs.discover-services.outputs.matrix }}'
+          COUNT="${COUNT:-0}"
+          MATRIX="${MATRIX:-[]}"
 
-          if [ "$TEST_RESULT" = "success" ]; then
+          if [ "$DISCOVER_RESULT" != "success" ]; then
+            echo "outcome=fail" >> $GITHUB_OUTPUT
+            echo "Integration tests FAILED (discovery result: $DISCOVER_RESULT)"
+          elif [ "$TEST_RESULT" = "success" ]; then
             echo "outcome=pass" >> $GITHUB_OUTPUT
             echo "Integration tests PASSED ($COUNT services tested)"
           elif [ "$TEST_RESULT" = "skipped" ] && [ "$COUNT" = "0" ]; then
@@ -193,6 +198,13 @@ jobs:
             echo "outcome=fail" >> $GITHUB_OUTPUT
             echo "Integration tests FAILED (test result: $TEST_RESULT)"
           fi
+
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+          {
+            echo "matrix<<EOF"
+            echo "$MATRIX"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Generate callback token
         uses: actions/create-github-app-token@v3.2.0
@@ -214,5 +226,5 @@ jobs:
               "library_name": "${{ inputs.library_name }}",
               "library_tag": "${{ inputs.library_tag }}",
               "details_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-              "services_tested": ${{ needs.discover-services.outputs.matrix }}
+              "services_tested": ${{ steps.result.outputs.matrix }}
             }
