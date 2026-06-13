@@ -35,13 +35,12 @@ on:
         default: true
       runner:
         description: "Runner label for macOS/Xcode builds"
-        required: false
+        required: true
         type: string
-        default: ""
 
 jobs:
   build-and-test:
-    runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].macos }}
+    runs-on: ${{ inputs.runner }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
