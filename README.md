@@ -1,6 +1,6 @@
 # github-action-templates
 
-Reusable GitHub Actions workflows + canonical caller workflows shared across consumer orgs.
+Reusable GitHub Actions workflows + canonical caller workflows shared across consumer orgs, including native Swift/Xcode macOS app CI.
 
 ## Two halves
 

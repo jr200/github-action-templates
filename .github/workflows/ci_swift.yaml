@@ -1,0 +1,75 @@
+name: template-ci-swift
+
+on:
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: "checkout ref (leave empty to use the event's natural ref)"
+        required: false
+        type: string
+        default: ""
+      project:
+        description: "Path to the Xcode project"
+        required: false
+        type: string
+        default: "Glossa.xcodeproj"
+      scheme:
+        description: "Xcode scheme to build and test"
+        required: false
+        type: string
+        default: "Glossa"
+      configuration:
+        description: "Xcode build configuration"
+        required: false
+        type: string
+        default: "Debug"
+      derived-data-path:
+        description: "DerivedData output path"
+        required: false
+        type: string
+        default: ".build/DerivedData"
+      run-tests:
+        description: "Whether to run xcodebuild test"
+        required: false
+        type: boolean
+        default: true
+      runner:
+        description: "Runner label for macOS/Xcode builds"
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  build-and-test:
+    runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].macos }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.checkout-ref }}
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build
+        run: >
+          xcodebuild
+          -project "${{ inputs.project }}"
+          -scheme "${{ inputs.scheme }}"
+          -configuration "${{ inputs.configuration }}"
+          -derivedDataPath "${{ inputs.derived-data-path }}"
+          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_REQUIRED=NO
+          build
+
+      - name: Test
+        if: inputs.run-tests
+        run: >
+          xcodebuild
+          -project "${{ inputs.project }}"
+          -scheme "${{ inputs.scheme }}"
+          -configuration "${{ inputs.configuration }}"
+          -derivedDataPath "${{ inputs.derived-data-path }}"
+          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_REQUIRED=NO
+          test

@@ -1,0 +1,3 @@
+# Swift/macOS app source group. Pulls in Xcode build + test on a macOS runner.
+includes:
+  - ci-swift
