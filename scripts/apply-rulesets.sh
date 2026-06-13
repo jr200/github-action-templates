@@ -30,7 +30,7 @@ SKIP_AUTO_MERGE=0
 INTERACTIVE_ORG_SELECTION=0
 APPLY_ORG_SCOPE=1
 declare -a REPO_FILTERS=()
-declare -a SUPPORTED_ORGS=("jr200-labs" "whengas")
+declare -a SUPPORTED_ORGS=("jr200-labs" "whengas" "janeway-labs")
 
 usage() {
     sed -n '1,/^set -euo/p' "$0" | sed 's/^# \?//'
@@ -50,6 +50,7 @@ Options:
 
 Examples:
   scripts/apply-rulesets.sh --org jr200-labs --dry-run
+  scripts/apply-rulesets.sh --repo janeway-labs/translatepane --ruleset trunk-protect
   scripts/apply-rulesets.sh --org whengas
   scripts/apply-rulesets.sh --ruleset trunk-protect --repo jr200-labs/mem0-dashboard
 EOF

@@ -19,14 +19,15 @@ scripts/apply-rulesets.sh --dry-run   # show what would change
 scripts/apply-rulesets.sh --org jr200-labs --dry-run
 scripts/apply-rulesets.sh --org whengas
 scripts/apply-rulesets.sh --repo jr200-labs/mem0-dashboard --ruleset trunk-protect
+scripts/apply-rulesets.sh --org janeway-labs --repo janeway-labs/translatepane --ruleset trunk-protect
 ```
 
-Requires `gh`, `jq`, `yq` and a `gh auth login` with admin on every targeted org. `gh` token plan must support requested scope — org-level rulesets need GitHub Team; free orgs fall back to per-repo.
+Requires `gh`, `jq`, `yq` and a `gh auth login` with admin on every targeted org. `gh` token plan must support requested scope — org-level rulesets need GitHub Team; free orgs fall back to per-repo. Private repositories on plans without branch protection/rulesets support will fail with GitHub's "Upgrade to GitHub Pro or make this repository public" error until the repo is public or the org has a paid plan.
 
 ## What `trunk-protect` does
 
 - Targets default branch (`~DEFAULT_BRANCH`) of every covered repo.
-- `pull_request` rule: 1 approving review, dismiss stale on push, require CODEOWNERS review.
+- `pull_request` rule: require PRs and allow squash merges only.
 - `required_linear_history`: aligns with squash-only merge policy.
 - `non_fast_forward`: blocks force-push.
 - `deletion`: blocks branch deletion.
@@ -46,6 +47,7 @@ Edit `targets.yaml`:
 trunk-protect:
   whengas: org
   jr200-labs: repo
+  janeway-labs: repo
   some-new-org: org    # add this line
 ```
 
@@ -57,12 +59,13 @@ Use the repo filter to apply existing canonical rulesets to one new repo without
 
 ```bash
 scripts/apply-rulesets.sh --repo jr200-labs/new-repo --ruleset trunk-protect
+scripts/apply-rulesets.sh --org janeway-labs --repo janeway-labs/translatepane --ruleset trunk-protect
 ```
 
 Useful flags for staged rollout:
 
 - `--repo ORG/REPO` (repeatable): target specific repos only.
-- `--org ORG`: narrow to one supported org (`jr200-labs` or `whengas`) and prompt `Y/n` per repo before applying repo-scoped changes. For org-scoped rulesets, the script also prompts once before applying the org-wide rule.
+- `--org ORG`: narrow to one supported org (`jr200-labs`, `whengas`, or `janeway-labs`) and prompt `Y/n` per repo before applying repo-scoped changes. For org-scoped rulesets, the script also prompts once before applying the org-wide rule.
 - `--ruleset NAME`: apply one canonical ruleset only.
 - `--skip-auto-merge`: skip repo-level merge-setting patches (`allow_auto_merge=false`, `delete_branch_on_merge=true`, `allow_update_branch=true`) if you only want ruleset reconciliation.
 
