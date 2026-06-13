@@ -52,6 +52,7 @@ Current groups:
 | `node-bench` | node-bench | repo has a Node/pnpm benchmark workflow and wants the shared manual benchmark caller |
 | `npm-package` | publish-npm-package | repo publishes a Node package to npmjs.com on release (needs `secrets.NPMJS_API_TOKEN`) |
 | `go` | ci-go | repo has `go.mod` |
+| `swift` | ci-swift | repo is a native Swift/Xcode app, including macOS app development |
 | `docker` | build-docker-image | repo publishes a docker image to ghcr.io |
 | `quarto-docs` | publish-quarto-docs | repo publishes a Quarto site from `docs` to `gh-pages` |
 | `helm-chart` | build-helm-chart | repo publishes a Helm chart (needs `vars.HELM_CHART_REPO` + `secrets.CHARTS_WRITE_TOKEN`) |
@@ -91,11 +92,11 @@ The canonical caller workflows encode invariants that are easy to break by hand 
 
 - **Top-level `permissions:`** — only the caller's *top-level* permissions cascade into reusable workflows. Job-level permissions on the caller are silently ignored when the caller invokes a reusable. Missing this on `build_docker_image.yaml` was the keymint v1.0.0 silent build failure.
 - **Secret name match** — the reusable declares a secret name; the caller must pass it under exactly that name. `app_private_key` vs `INTEGRATION_APP_PRIVATE_KEY` is a one-character bug that fails the run at startup.
-- **Runner forwarding** — every reusable that runs jobs takes a `runner:` input parameterised via `vars.RUNNER_PROFILES[vars.RUNNER_PROFILE].default`. Hard-coded `ubuntu-latest` is forbidden.
+- **Runner forwarding** — every reusable that runs jobs takes a `runner:` input parameterised via `vars.RUNNER_PROFILES[vars.RUNNER_PROFILE].<role>`. Linux CI generally uses `default`; native Swift/Xcode macOS app CI uses `macos`. Hard-coded labels such as `ubuntu-latest` or `macos-latest` are forbidden.
 
 ## Tests: unit vs integration
 
-The canonical `ci-python` / `ci-go` / `ci-node` callers run **lint + unit tests only**. Integration tests — anything that needs external infrastructure (database, message bus, S3, etc.) — stay **bespoke per repo** in a separate `integration-tests.yaml` workflow that owns its own service setup, fixtures, and secrets.
+The canonical `ci-python` / `ci-go` / `ci-node` / `ci-swift` callers run **lint/build + unit tests only**. For native Swift/Xcode macOS app development, `ci-swift` builds and tests the app scheme on a macOS runner with code signing disabled. Integration tests — anything that needs external infrastructure (database, message bus, S3, etc.) — stay **bespoke per repo** in a separate `integration-tests.yaml` workflow that owns its own service setup, fixtures, and secrets.
 
 Why: each repo's external deps are different, so there's no canonical infra setup that fits every consumer. Pushing infra into the canonical CI would either reintroduce per-repo substitution (rejected — see "How a consuming repo uses this" above) or impose a one-size-fits-none stack on every Python/Go/Node repo.
 
