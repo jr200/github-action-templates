@@ -9,15 +9,15 @@ on:
         type: string
         default: ""
       project:
-        description: "Path to the Xcode project"
+        description: "Path to the Xcode project. Leave empty to auto-detect a single .xcodeproj."
         required: false
         type: string
-        default: "Glossa.xcodeproj"
+        default: ""
       scheme:
-        description: "Xcode scheme to build and test"
+        description: "Xcode scheme to build and test. Leave empty to use the project basename or a single shared scheme."
         required: false
         type: string
-        default: "Glossa"
+        default: ""
       configuration:
         description: "Xcode build configuration"
         required: false
@@ -50,11 +50,67 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      - name: Resolve Xcode project and scheme
+        id: xcode
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          project="${{ inputs.project }}"
+          if [ -z "$project" ]; then
+            projects=()
+            while IFS= read -r found_project; do
+              projects+=("$found_project")
+            done < <(find . -maxdepth 2 -name "*.xcodeproj" -type d | sort | sed 's#^\./##')
+            if [ "${#projects[@]}" -ne 1 ]; then
+              printf 'Expected exactly one .xcodeproj when project input is empty, found %d:\n' "${#projects[@]}" >&2
+              printf '  %s\n' "${projects[@]}" >&2
+              exit 1
+            fi
+            project="${projects[0]}"
+          fi
+
+          if [ ! -d "$project" ]; then
+            echo "Xcode project not found: $project" >&2
+            exit 1
+          fi
+
+          scheme="${{ inputs.scheme }}"
+          if [ -z "$scheme" ]; then
+            project_basename="$(basename "$project" .xcodeproj)"
+            schemes=()
+            while IFS= read -r found_scheme; do
+              schemes+=("$found_scheme")
+            done < <(
+              xcodebuild -list -json -project "$project" |
+                /usr/bin/python3 -c 'import json,sys; print("\n".join(json.load(sys.stdin).get("project", {}).get("schemes", [])))'
+            )
+
+            if printf '%s\n' "${schemes[@]}" | grep -Fxq "$project_basename"; then
+              scheme="$project_basename"
+            elif [ "${#schemes[@]}" -eq 1 ]; then
+              scheme="${schemes[0]}"
+            else
+              printf 'Scheme input is empty and no unambiguous scheme could be selected for %s.\n' "$project" >&2
+              printf 'Expected a scheme named %s or exactly one shared scheme. Found:\n' "$project_basename" >&2
+              printf '  %s\n' "${schemes[@]}" >&2
+              exit 1
+            fi
+          fi
+
+          {
+            echo "project=$project"
+            echo "scheme=$scheme"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Resolved Xcode project: $project"
+          echo "Resolved Xcode scheme: $scheme"
+
       - name: Build
         run: >
           xcodebuild
-          -project "${{ inputs.project }}"
-          -scheme "${{ inputs.scheme }}"
+          -project "${{ steps.xcode.outputs.project }}"
+          -scheme "${{ steps.xcode.outputs.scheme }}"
           -configuration "${{ inputs.configuration }}"
           -derivedDataPath "${{ inputs.derived-data-path }}"
           CODE_SIGNING_ALLOWED=NO
@@ -65,8 +121,8 @@ jobs:
         if: inputs.run-tests
         run: >
           xcodebuild
-          -project "${{ inputs.project }}"
-          -scheme "${{ inputs.scheme }}"
+          -project "${{ steps.xcode.outputs.project }}"
+          -scheme "${{ steps.xcode.outputs.scheme }}"
           -configuration "${{ inputs.configuration }}"
           -derivedDataPath "${{ inputs.derived-data-path }}"
           CODE_SIGNING_ALLOWED=NO

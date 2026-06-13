@@ -61,6 +61,13 @@ Current groups:
 | `oci-artifact` | publish-oci-artifact | repo publishes a generic OCI artifact bundle to GHCR on release |
 | `drift-check-rulesets` | drift-check-rulesets | one consumer per org watches its own ruleset state |
 
+For the `swift` group, keep the consumer caller generic. The reusable workflow
+auto-detects a single `.xcodeproj` and then chooses the matching project-named
+scheme, or the only shared scheme. Repos with multiple Xcode projects or
+schemes should pass explicit `project` / `scheme` inputs from a bespoke caller
+workflow rather than hard-coding one app's name into the canonical shared
+workflow.
+
 ## Trigger model
 
 `release-please.yaml` is the sole release fan-out. On a Release PR merge it cuts a tag + GitHub Release, then fires a single `repository_dispatch: release-published` event. Every artifact-publishing workflow (`build-docker-image.yaml`, etc.) listens on the same event type, so their callers can be verbatim across repos. Repos that don't publish docker simply omit `docker` from their groups; the dispatch fires anyway and goes nowhere.
