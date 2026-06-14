@@ -92,6 +92,8 @@
       "description": "When the shared workflow ref changes, render the generated consumer workflows in the same Renovate PR. Bumping only `.github/.shared-config.yaml` leaves checked-in workflows stale and makes every later PR fail drift-check.",
       "matchManagers": ["custom.regex"],
       "matchPackageNames": ["jr200-labs/github-action-templates"],
+      "groupName": "shared workflow ref",
+      "groupSlug": "shared-workflow-ref",
       "postUpgradeTasks": {
         "commands": ["./scripts/sync-shared"],
         "fileFilters": [
@@ -100,6 +102,15 @@
         ],
         "executionMode": "branch"
       }
+    },
+    {
+      "description": "Let the plain uv lock post-upgrade task handle git-pinned Python deps. Renovate's built-in uv artifact updater passes the GitHub repo slug (for example `org/package-repo`) to `uv lock --upgrade-package`, but uv expects the Python package name there.",
+      "matchManagers": ["custom.regex"],
+      "matchFileNames": ["pyproject.toml"],
+      "matchPackageNames": ["/^[^/]+/[A-Za-z0-9_.-]+$/"],
+      "groupName": "python git dependencies",
+      "groupSlug": "python-git-deps",
+      "skipArtifactsUpdate": true
     },
     {
       "description": "Regenerate uv.lock whenever Renovate changes Python dependencies in pyproject.toml. Renovate's pep621/custom regex managers update the manifest but do not keep uv lockfiles in sync, so CI's `uv lock --check` fails on generated dependency PRs.",
