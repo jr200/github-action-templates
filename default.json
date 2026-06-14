@@ -108,7 +108,7 @@
       "matchManagers": ["pep621", "custom.regex"],
       "matchFileNames": ["pyproject.toml"],
       "postUpgradeTasks": {
-        "commands": ["uv lock"],
+        "commands": ["install-tool uv && uv lock"],
         "fileFilters": ["uv.lock"],
         "executionMode": "branch"
       }
