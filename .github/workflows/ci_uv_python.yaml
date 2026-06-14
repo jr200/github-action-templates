@@ -49,6 +49,19 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
 
+      - name: Verify uv.lock changed with pyproject.toml
+        if: github.event_name == 'pull_request' && hashFiles('uv.lock') != ''
+        run: |
+          set -euo pipefail
+
+          git fetch --no-tags --depth=1 origin "${{ github.event.pull_request.base.sha }}"
+
+          changed_files=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" HEAD -- pyproject.toml uv.lock)
+          if grep -qx 'pyproject.toml' <<<"$changed_files" && ! grep -qx 'uv.lock' <<<"$changed_files"; then
+            echo "::error file=pyproject.toml::pyproject.toml changed without uv.lock. Run 'uv lock' and commit the updated uv.lock."
+            exit 1
+          fi
+
       - name: Install uv
         uses: astral-sh/setup-uv@v8.2.0
 
