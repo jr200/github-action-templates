@@ -42,7 +42,7 @@ jobs:
     # against one schema and running against another.
     runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -68,7 +68,7 @@ jobs:
     # be removed so any future regression is caught.
     runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install actionlint
         id: get_actionlint
@@ -86,7 +86,7 @@ jobs:
   validate-shared-sync:
     runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Test shared sync scripts
         run: ./scripts/test-shared-sync.sh
 
@@ -100,6 +100,6 @@ jobs:
     # the next PR touched default.json.
     runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Lint Renovate pins
         run: ./scripts/lint-renovate-pins.sh
