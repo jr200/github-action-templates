@@ -89,7 +89,7 @@ jobs:
       patch: ${{ steps.release.outputs.patch }}
     steps:
       - name: Checkout (for config validation)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Sync shared release config
         shell: bash
