@@ -170,6 +170,8 @@ jobs:
             exit 0
           fi
 
+          printf 'machine github.com\nlogin x-access-token\npassword %s\n' "$GH_TOKEN" > ~/.netrc
+          chmod 0600 ~/.netrc
           uv lock
           if git diff --quiet -- uv.lock; then
             echo "uv.lock already up to date."
