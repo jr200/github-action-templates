@@ -95,9 +95,6 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
       - name: Mint App installation token
         id: app-token
         # Use App auth whenever the App credentials are wired through.
@@ -118,6 +115,11 @@ jobs:
           permission-pull-requests: write
           permission-issues: write
           permission-workflows: write
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Setup uv for Python post-upgrade tasks
         if: ${{ hashFiles('pyproject.toml') != '' }}

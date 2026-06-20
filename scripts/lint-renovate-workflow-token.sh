@@ -37,4 +37,23 @@ if ! grep -q 'permission-workflows: write' "$workflow"; then
   exit 1
 fi
 
+mint_line="$(grep -n 'name: Mint App installation token' "$workflow" | head -n1 | cut -d: -f1 || true)"
+checkout_line="$(grep -n 'name: Checkout$' "$workflow" | head -n1 | cut -d: -f1 || true)"
+checkout_token_line="$(grep -n 'token: \${{ steps.app-token.outputs.token }}' "$workflow" | head -n1 | cut -d: -f1 || true)"
+
+if [ -z "$mint_line" ] || [ -z "$checkout_line" ]; then
+  echo "lint-renovate-workflow-token: expected both app token mint and initial checkout steps" >&2
+  exit 1
+fi
+
+if [ "$mint_line" -ge "$checkout_line" ]; then
+  echo "lint-renovate-workflow-token: app token must be minted before checkout so persisted git credentials can push workflow changes" >&2
+  exit 1
+fi
+
+if [ -z "$checkout_token_line" ] || [ "$checkout_token_line" -le "$checkout_line" ]; then
+  echo "lint-renovate-workflow-token: initial checkout must use steps.app-token.outputs.token" >&2
+  exit 1
+fi
+
 echo "lint-renovate-workflow-token: $workflow OK"
