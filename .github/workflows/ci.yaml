@@ -117,6 +117,15 @@ jobs:
       - name: Lint Renovate uv.lock post-upgrade task
         run: ./scripts/lint-renovate-uv-lock-task.sh
 
+  validate-renovate-workflow-token:
+    # Renovate can update generated workflow files after syncing shared refs.
+    # GitHub rejects those branch pushes unless the App token has workflows:write.
+    runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint Renovate workflow token
+        run: ./scripts/lint-renovate-workflow-token.sh
+
   validate-release-please-uv-lock-auth:
     # release-please refreshes uv.lock on release PRs. That lock refresh
     # resolves private git dependencies, so git HTTPS auth must be available

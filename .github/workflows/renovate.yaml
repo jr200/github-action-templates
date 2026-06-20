@@ -114,6 +114,10 @@ jobs:
           client-id: ${{ inputs.client-id || vars.INTEGRATION_CLIENT_ID }}
           private-key: ${{ secrets.INTEGRATION_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+          permission-workflows: write
 
       - name: Setup uv for Python post-upgrade tasks
         if: ${{ hashFiles('pyproject.toml') != '' }}
