@@ -23,7 +23,7 @@ fi
 rule_count=$(jq '
   [
     .packageRules[]?
-    | select((.postUpgradeTasks.commands // []) == ["install-tool uv && uv lock"])
+    | select((.postUpgradeTasks.commands // []) == ["uv lock"])
     | select((.postUpgradeTasks.fileFilters // []) == ["uv.lock"])
     | select((.matchManagers // []) | index("pep621"))
     | select((.matchManagers // []) | index("custom.regex"))
@@ -39,7 +39,7 @@ fi
 file_scoped_count=$(jq '
   [
     .packageRules[]?
-    | select((.postUpgradeTasks.commands // []) == ["install-tool uv && uv lock"])
+    | select((.postUpgradeTasks.commands // []) == ["uv lock"])
     | select(has("matchFileNames"))
   ]
   | length

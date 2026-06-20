@@ -172,7 +172,7 @@ jobs:
           # documented metadata-driven helper scripts without enabling broad
           # command execution. `uv lock` is allowed exactly so Python
           # dependency PRs can keep uv.lock synchronized with pyproject.toml.
-          RENOVATE_ALLOWED_COMMANDS: '^(?:uv lock|install-tool uv && uv lock|\./\.renovate/[A-Za-z0-9_.-]+\.py|\./scripts/sync-shared)$'
+          RENOVATE_ALLOWED_COMMANDS: '^(?:uv lock|\./\.renovate/[A-Za-z0-9_.-]+\.py|\./scripts/sync-shared)$'
           # Optional dry-run for debugging without creating branches/PRs.
           RENOVATE_DRY_RUN: ${{ inputs.dry-run }}
           # Normal Renovate lockfile maintenance must not enforce the
@@ -208,16 +208,25 @@ jobs:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_ONBOARDING: 'false'
           RENOVATE_REQUIRE_CONFIG: 'required'
-          RENOVATE_ALLOWED_COMMANDS: '^(?:uv lock|install-tool uv && uv lock|\./\.renovate/[A-Za-z0-9_.-]+\.py|\./scripts/sync-shared)$'
+          RENOVATE_ALLOWED_COMMANDS: '^(?:uv lock|\./\.renovate/[A-Za-z0-9_.-]+\.py|\./scripts/sync-shared)$'
           PNPM_CONFIG_MINIMUM_RELEASE_AGE: '0'
           RENOVATE_CUSTOM_ENV_VARIABLES: '{"PNPM_CONFIG_MINIMUM_RELEASE_AGE":"0"}'
           RENOVATE_REPORT_TYPE: 'file'
           RENOVATE_REPORT_PATH: /out/pass2.report.json
 
+      - name: Checkout shared repair scripts
+        if: success() && inputs.dry-run == '' && hashFiles('pyproject.toml') != ''
+        uses: actions/checkout@v7
+        with:
+          repository: jr200-labs/github-action-templates
+          ref: master
+          path: _gha_templates
+          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+
       - name: Repair stale uv.lock on Renovate Python branches
         if: success() && inputs.dry-run == '' && hashFiles('pyproject.toml') != ''
         shell: bash
-        run: ./scripts/repair-renovate-uv-lock-branches.sh
+        run: ./_gha_templates/scripts/repair-renovate-uv-lock-branches.sh
         env:
           RENOVATE_REPAIR_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
