@@ -55,7 +55,7 @@ while IFS= read -r remote_ref; do
   fi
 
   git add "${repair_paths[@]}"
-  git commit --amend --no-edit
+  git commit --amend --no-edit --allow-empty
 
   after_tree="$(git rev-parse HEAD^{tree})"
   if [[ "$before_tree" == "$after_tree" ]]; then
