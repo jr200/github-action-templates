@@ -275,17 +275,16 @@ apply_repo() {
     done <<<"$repos"
 }
 
-# Reconcile repo-level Actions settings that don't live in rulesets.
+# Reconcile org/repo-level Actions settings that don't live in rulesets.
 # This keeps bot-repaired Renovate PRs from getting stuck behind the
 # "approve workflow run" gate after github-actions[bot] amends a branch.
 reconcile_actions_private_fork_workflow_policy() {
-    local org="$1" repo="$2"
-    local endpoint current approval tmp_body error_summary
+    local label="$1" endpoint="$2"
+    local current approval tmp_body error_summary
 
-    endpoint="/repos/$org/$repo/actions/permissions/fork-pr-workflows-private-repos"
     if ! current=$(gh api "$endpoint" 2>&1); then
         error_summary="${current//$'\n'/ }"
-        echo "  repo/$org/$repo actions private fork workflow policy: skipped ($error_summary)"
+        echo "  $label actions private fork workflow policy: skipped ($error_summary)"
         return
     fi
 
@@ -304,7 +303,7 @@ reconcile_actions_private_fork_workflow_policy() {
       }
     ' <<<"$current" > "$tmp_body"
 
-    echo "  repo/$org/$repo: reconcile require_approval_for_fork_pr_workflows=false (drift detected)"
+    echo "  $label: reconcile require_approval_for_fork_pr_workflows=false (drift detected)"
     run gh api "$endpoint" -X PUT --input "$tmp_body" --silent
     rm -f "$tmp_body"
 }
@@ -314,7 +313,14 @@ reconcile_actions_private_fork_workflow_policy() {
 # adjacent behaviors as plain repository settings.
 reconcile_repo_settings() {
     local org="$1"
+    local scope="$2"
     local repos
+
+    if [ "$scope" = "org" ]; then
+        reconcile_actions_private_fork_workflow_policy \
+            "org/$org" \
+            "/orgs/$org/actions/permissions/fork-pr-workflows-private-repos"
+    fi
 
     if [ "$SKIP_AUTO_MERGE" = 1 ]; then
         echo "  org/$org: skipping repo merge-setting enforcement (--skip-auto-merge)"
@@ -344,7 +350,11 @@ reconcile_repo_settings() {
             fi
         fi
 
-        reconcile_actions_private_fork_workflow_policy "$org" "$repo"
+        if [ "$scope" = "repo" ]; then
+            reconcile_actions_private_fork_workflow_policy \
+                "repo/$org/$repo" \
+                "/repos/$org/$repo/actions/permissions/fork-pr-workflows-private-repos"
+        fi
     done <<<"$repos"
 }
 
@@ -382,7 +392,7 @@ while IFS= read -r ruleset; do
             repo) apply_repo "$org" "$ruleset" "$body" ;;
             *) echo "unknown scope '$scope' for $ruleset/$org" >&2; exit 1 ;;
         esac
-        reconcile_repo_settings "$org"
+        reconcile_repo_settings "$org" "$scope"
     done <<<"$orgs"
 done <<<"$rulesets"
 
