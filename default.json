@@ -108,6 +108,9 @@
       "matchManagers": ["pep621", "custom.regex"],
       "postUpgradeTasks": {
         "commands": ["uv lock"],
+        "installTools": {
+          "uv": {}
+        },
         "fileFilters": ["uv.lock"],
         "executionMode": "branch"
       }
