@@ -214,6 +214,13 @@ jobs:
           RENOVATE_REPORT_TYPE: 'file'
           RENOVATE_REPORT_PATH: /out/pass2.report.json
 
+      - name: Repair stale uv.lock on Renovate Python branches
+        if: success() && inputs.dry-run == '' && hashFiles('pyproject.toml') != ''
+        shell: bash
+        run: ./scripts/repair-renovate-uv-lock-branches.sh
+        env:
+          RENOVATE_REPAIR_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+
       - name: Fail on Renovate problems
         # Reads Renovate's structured JSON report. Fails the workflow
         # on ANY problem (warning or error) — per WG-141 policy, every

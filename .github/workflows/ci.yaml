@@ -103,3 +103,13 @@ jobs:
       - uses: actions/checkout@v7
       - name: Lint Renovate pins
         run: ./scripts/lint-renovate-pins.sh
+
+  validate-renovate-uv-lock-task:
+    # Ensures Python dependency PRs regenerate uv.lock through Renovate
+    # postUpgradeTasks. A file-scoped rule failed to attach to grouped
+    # pyproject.toml updates, so Renovate produced PRs that CI rejected.
+    runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint Renovate uv.lock post-upgrade task
+        run: ./scripts/lint-renovate-uv-lock-task.sh
