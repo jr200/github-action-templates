@@ -215,7 +215,7 @@ jobs:
           RENOVATE_REPORT_PATH: /out/pass2.report.json
 
       - name: Checkout shared repair scripts
-        if: success() && inputs.dry-run == '' && hashFiles('pyproject.toml') != ''
+        if: success() && inputs.dry-run == ''
         uses: actions/checkout@v7
         with:
           repository: jr200-labs/github-action-templates
@@ -227,6 +227,13 @@ jobs:
         if: success() && inputs.dry-run == '' && hashFiles('pyproject.toml') != ''
         shell: bash
         run: ./_gha_templates/scripts/repair-renovate-uv-lock-branches.sh
+        env:
+          RENOVATE_REPAIR_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+
+      - name: Repair generated shared workflow drift on Renovate branches
+        if: success() && inputs.dry-run == ''
+        shell: bash
+        run: ./_gha_templates/scripts/repair-renovate-shared-workflow-branches.sh
         env:
           RENOVATE_REPAIR_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
