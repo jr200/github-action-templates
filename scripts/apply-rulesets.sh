@@ -12,6 +12,7 @@
 #   - allow_auto_merge=false
 #   - delete_branch_on_merge=true
 #   - allow_update_branch=true
+#   - require_approval_for_fork_pr_workflows=false
 #
 # Usage:
 #   scripts/apply-rulesets.sh [--dry-run] [--org ORG] [--repo ORG/REPO]
@@ -274,6 +275,40 @@ apply_repo() {
     done <<<"$repos"
 }
 
+# Reconcile repo-level Actions settings that don't live in rulesets.
+# This keeps bot-repaired Renovate PRs from getting stuck behind the
+# "approve workflow run" gate after github-actions[bot] amends a branch.
+reconcile_actions_private_fork_workflow_policy() {
+    local org="$1" repo="$2"
+    local endpoint current approval tmp_body error_summary
+
+    endpoint="/repos/$org/$repo/actions/permissions/fork-pr-workflows-private-repos"
+    if ! current=$(gh api "$endpoint" 2>&1); then
+        error_summary="${current//$'\n'/ }"
+        echo "  repo/$org/$repo actions private fork workflow policy: skipped ($error_summary)"
+        return
+    fi
+
+    approval=$(jq -r '.require_approval_for_fork_pr_workflows' <<<"$current")
+    if [ "$approval" = "false" ]; then
+        return
+    fi
+
+    tmp_body=$(mktemp)
+    jq -S '
+      {
+        run_workflows_from_fork_pull_requests,
+        send_write_tokens_to_workflows,
+        send_secrets_and_variables,
+        require_approval_for_fork_pr_workflows: false
+      }
+    ' <<<"$current" > "$tmp_body"
+
+    echo "  repo/$org/$repo: reconcile require_approval_for_fork_pr_workflows=false (drift detected)"
+    run gh api "$endpoint" -X PUT --input "$tmp_body" --silent
+    rm -f "$tmp_body"
+}
+
 # Reconcile repo-level merge hygiene settings that don't live in rulesets.
 # Rulesets cover branch protection / PR requirements; GitHub keeps a few
 # adjacent behaviors as plain repository settings.
@@ -283,7 +318,6 @@ reconcile_repo_settings() {
 
     if [ "$SKIP_AUTO_MERGE" = 1 ]; then
         echo "  org/$org: skipping repo merge-setting enforcement (--skip-auto-merge)"
-        return
     fi
 
     repos=$(gh api "orgs/$org/repos?per_page=100&type=all" --paginate --jq '.[] | select(.archived==false) | .name')
@@ -292,22 +326,25 @@ reconcile_repo_settings() {
         if ! repo_selected "$org" "$repo"; then
             continue
         fi
-        local current auto_merge delete_branch update_branch
-        current=$(gh api "/repos/$org/$repo" -q '{allow_auto_merge: .allow_auto_merge, delete_branch_on_merge: .delete_branch_on_merge, allow_update_branch: .allow_update_branch}')
-        auto_merge=$(jq -r '.allow_auto_merge' <<<"$current")
-        delete_branch=$(jq -r '.delete_branch_on_merge' <<<"$current")
-        update_branch=$(jq -r '.allow_update_branch' <<<"$current")
 
-        if [ "$auto_merge" = "false" ] && [ "$delete_branch" = "true" ] && [ "$update_branch" = "true" ]; then
-            continue
+        if [ "$SKIP_AUTO_MERGE" != 1 ]; then
+            local current auto_merge delete_branch update_branch
+            current=$(gh api "/repos/$org/$repo" -q '{allow_auto_merge: .allow_auto_merge, delete_branch_on_merge: .delete_branch_on_merge, allow_update_branch: .allow_update_branch}')
+            auto_merge=$(jq -r '.allow_auto_merge' <<<"$current")
+            delete_branch=$(jq -r '.delete_branch_on_merge' <<<"$current")
+            update_branch=$(jq -r '.allow_update_branch' <<<"$current")
+
+            if [ "$auto_merge" != "false" ] || [ "$delete_branch" != "true" ] || [ "$update_branch" != "true" ]; then
+                echo "  repo/$org/$repo: reconcile allow_auto_merge=false, delete_branch_on_merge=true, allow_update_branch=true (drift detected)"
+                run gh api -X PATCH "/repos/$org/$repo" \
+                    -F allow_auto_merge=false \
+                    -F delete_branch_on_merge=true \
+                    -F allow_update_branch=true \
+                    --silent
+            fi
         fi
 
-        echo "  repo/$org/$repo: reconcile allow_auto_merge=false, delete_branch_on_merge=true, allow_update_branch=true (drift detected)"
-        run gh api -X PATCH "/repos/$org/$repo" \
-            -F allow_auto_merge=false \
-            -F delete_branch_on_merge=true \
-            -F allow_update_branch=true \
-            --silent
+        reconcile_actions_private_fork_workflow_policy "$org" "$repo"
     done <<<"$repos"
 }
 
