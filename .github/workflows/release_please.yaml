@@ -76,14 +76,17 @@ on:
 jobs:
   release-please:
     runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    concurrency:
+      group: release-please-${{ github.repository }}-${{ inputs.target-branch }}
+      cancel-in-progress: false
     permissions:
       contents: write
       pull-requests: write
     outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-      sha: ${{ steps.release.outputs.sha }}
-      version: ${{ steps.release.outputs.version }}
+      release_created: ${{ steps.release.outcome == 'success' && steps.release.outputs.release_created == 'true' }}
+      tag_name: ${{ steps.release.outputs.tag_name || steps.duplicate-release.outputs.tag_name }}
+      sha: ${{ steps.release.outputs.sha || steps.duplicate-release.outputs.sha }}
+      version: ${{ steps.release.outputs.version || steps.duplicate-release.outputs.version }}
       major: ${{ steps.release.outputs.major }}
       minor: ${{ steps.release.outputs.minor }}
       patch: ${{ steps.release.outputs.patch }}
@@ -126,6 +129,7 @@ jobs:
 
       - name: Run release-please
         id: release
+        continue-on-error: true
         uses: googleapis/release-please-action@v5
         with:
           token: ${{ steps.app-token.outputs.token }}
@@ -134,12 +138,66 @@ jobs:
           target-branch: ${{ inputs.target-branch }}
           release-type: ${{ inputs.release-type }}
 
+      - name: Detect duplicate release tag
+        id: duplicate-release
+        if: steps.release.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+          CONFIG_FILE: ${{ inputs.config-file }}
+          MANIFEST_FILE: ${{ inputs.manifest-file }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="$(jq -r '."." // empty' "$MANIFEST_FILE")"
+          if [ -z "$version" ]; then
+            echo "No root manifest version found; preserving release-please failure."
+            exit 0
+          fi
+
+          include_v="$(jq -r '."include-v-in-tag" // true' "$CONFIG_FILE")"
+          if [ "$include_v" = "false" ]; then
+            tag="$version"
+          else
+            tag="v${version}"
+          fi
+
+          subject="$(git log -1 --format=%s)"
+          expected_subject="chore(${TARGET_BRANCH}): release ${version}"
+          if [ "$subject" != "$expected_subject" ]; then
+            echo "HEAD subject is not '${expected_subject}'; preserving release-please failure."
+            exit 0
+          fi
+
+          release_json="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json tagName,targetCommitish,url 2>/dev/null || true)"
+          if [ -z "$release_json" ]; then
+            echo "Release $tag does not exist; preserving release-please failure."
+            exit 0
+          fi
+
+          release_sha="$(jq -r '.targetCommitish // ""' <<<"$release_json")"
+          release_url="$(jq -r '.url' <<<"$release_json")"
+          echo "Release $tag already exists at ${release_sha}; treating duplicate publish as idempotent."
+          echo "release_url=${release_url}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${tag}" >> "$GITHUB_OUTPUT"
+          echo "sha=${release_sha}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "duplicate=true" >> "$GITHUB_OUTPUT"
+
+      - name: Fail release-please
+        if: steps.release.outcome == 'failure' && steps.duplicate-release.outputs.duplicate != 'true'
+        shell: bash
+        run: |
+          echo "::error title=release-please failed::release-please failed and no duplicate existing release tag was detected."
+          exit 1
+
       - name: Set up uv for release PR lockfiles
-        if: steps.release.outputs.release_created != 'true'
+        if: steps.release.outcome == 'success' && steps.release.outputs.release_created != 'true'
         uses: astral-sh/setup-uv@v8.2.0
 
       - name: Refresh uv.lock on release PR
-        if: steps.release.outputs.release_created != 'true'
+        if: steps.release.outcome == 'success' && steps.release.outputs.release_created != 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           TARGET_BRANCH: ${{ inputs.target-branch }}
