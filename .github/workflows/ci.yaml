@@ -88,7 +88,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Test shared sync scripts
-        run: ./scripts/test-shared-sync.sh
+        run: |
+          ./scripts/test-shared-sync.sh
+          ./scripts/test-repair-renovate-shared-workflow-branches.sh
 
   validate-renovate-pins:
     # Enforces the no-forever-pin policy on default.json packageRules.
