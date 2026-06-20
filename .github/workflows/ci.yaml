@@ -126,3 +126,13 @@ jobs:
       - uses: actions/checkout@v7
       - name: Lint release-please uv.lock auth
         run: ./scripts/lint-release-please-uv-lock-auth.sh
+
+  validate-release-shared-ref-token:
+    # Shared refs may point at workflow changes. GitHub rejects tag pushes for
+    # those commits unless the credential has workflows:write, so this release
+    # workflow must use the integration app token rather than github.token.
+    runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint shared ref release token
+        run: ./scripts/lint-release-shared-ref-token.sh
