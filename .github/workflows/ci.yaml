@@ -113,3 +113,13 @@ jobs:
       - uses: actions/checkout@v7
       - name: Lint Renovate uv.lock post-upgrade task
         run: ./scripts/lint-renovate-uv-lock-task.sh
+
+  validate-release-please-uv-lock-auth:
+    # release-please refreshes uv.lock on release PRs. That lock refresh
+    # resolves private git dependencies, so git HTTPS auth must be available
+    # before `uv lock`, not only before the later push.
+    runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint release-please uv.lock auth
+        run: ./scripts/lint-release-please-uv-lock-auth.sh
