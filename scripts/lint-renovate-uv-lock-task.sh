@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Validate the shared Renovate uv.lock regeneration rule.
+#
+# Renovate applies postUpgradeTasks from the matched dependency config. In
+# grouped Python PRs, scoping this rule with matchFileNames has failed to attach
+# the task to pyproject.toml updates, leaving uv.lock stale while CI rejects the
+# branch with `uv lock --check`.
+
+set -euo pipefail
+
+file="${1:-default.json}"
+
+if [[ ! -f "$file" ]]; then
+  echo "ERROR: config file not found: $file" >&2
+  exit 2
+fi
+
+if ! jq -e . "$file" >/dev/null 2>&1; then
+  echo "ERROR: $file is not valid JSON" >&2
+  exit 2
+fi
+
+rule_count=$(jq '
+  [
+    .packageRules[]?
+    | select((.postUpgradeTasks.commands // []) == ["install-tool uv && uv lock"])
+    | select((.postUpgradeTasks.fileFilters // []) == ["uv.lock"])
+    | select((.matchManagers // []) | index("pep621"))
+    | select((.matchManagers // []) | index("custom.regex"))
+  ]
+  | length
+' "$file")
+
+if [[ "$rule_count" != "1" ]]; then
+  echo "FAIL: expected exactly one uv.lock postUpgradeTasks rule for pep621/custom.regex managers; found ${rule_count}" >&2
+  exit 1
+fi
+
+file_scoped_count=$(jq '
+  [
+    .packageRules[]?
+    | select((.postUpgradeTasks.commands // []) == ["install-tool uv && uv lock"])
+    | select(has("matchFileNames"))
+  ]
+  | length
+' "$file")
+
+if [[ "$file_scoped_count" != "0" ]]; then
+  echo "FAIL: uv.lock postUpgradeTasks rule must not use matchFileNames; it can prevent Renovate from running the task on grouped pyproject.toml updates" >&2
+  exit 1
+fi
+
+echo "lint-renovate-uv-lock-task: ok" >&2

@@ -106,7 +106,6 @@
     {
       "description": "Regenerate uv.lock whenever Renovate changes Python dependencies in pyproject.toml. Renovate's pep621/custom regex managers update the manifest but do not keep uv lockfiles in sync, so CI's `uv lock --check` fails on generated dependency PRs.",
       "matchManagers": ["pep621", "custom.regex"],
-      "matchFileNames": ["pyproject.toml"],
       "postUpgradeTasks": {
         "commands": ["install-tool uv && uv lock"],
         "fileFilters": ["uv.lock"],
