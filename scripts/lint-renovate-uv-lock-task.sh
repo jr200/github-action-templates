@@ -24,7 +24,7 @@ rule_count=$(jq '
   [
     .packageRules[]?
     | select((.postUpgradeTasks.commands // []) == ["uv lock"])
-    | select((.postUpgradeTasks.installTools // {}) == {"uv": {}})
+    | select((.postUpgradeTasks.installTools // {}) == {"python": {}, "uv": {}})
     | select((.postUpgradeTasks.fileFilters // []) == ["uv.lock"])
     | select((.matchManagers // []) | index("pep621"))
     | select((.matchManagers // []) | index("custom.regex"))
@@ -33,7 +33,7 @@ rule_count=$(jq '
 ' "$file")
 
 if [[ "$rule_count" != "1" ]]; then
-  echo "FAIL: expected exactly one uv.lock postUpgradeTasks rule for pep621/custom.regex managers with installTools.uv; found ${rule_count}" >&2
+  echo "FAIL: expected exactly one uv.lock postUpgradeTasks rule for pep621/custom.regex managers with installTools.python and installTools.uv; found ${rule_count}" >&2
   exit 1
 fi
 
