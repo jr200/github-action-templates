@@ -20,6 +20,9 @@ if [[ -n "${RENOVATE_REPAIR_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
   git remote set-url origin "https://x-access-token:${RENOVATE_REPAIR_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 fi
 
+git config user.name "${GIT_AUTHOR_NAME:-${GITHUB_ACTOR:-renovate}[bot]}"
+git config user.email "${GIT_AUTHOR_EMAIL:-${GITHUB_ACTOR_ID:-41898282}+${GITHUB_ACTOR:-renovate}[bot]@users.noreply.github.com}"
+
 git fetch --no-tags origin "+refs/heads/${branch_glob}:refs/remotes/origin/${branch_glob}"
 
 base_sha="$(git rev-parse "$base_ref")"
