@@ -33,6 +33,26 @@
           "squash"
         ]
       }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "required_status_checks": [
+          {
+            "context": "commitlint / commitlint"
+          }
+        ]
+      }
+    },
+    {
+      "type": "commit_message_pattern",
+      "parameters": {
+        "name": "Conventional Commit",
+        "negate": false,
+        "operator": "regex",
+        "pattern": "^(feat|fix|perf|revert|deps|refactor|test|build|docs|chore|ci|style)(\\([^)]+\\))?!?: .+"
+      }
     }
   ],
   "bypass_actors": []

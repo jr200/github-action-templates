@@ -1,7 +1,9 @@
 name: template-lint-commits
 
-# Reusable workflow that validates all commits in a pull request against
-# the Conventional Commits spec via wagoid/commitlint-github-action.
+# Reusable workflow that validates all commits in a pull request and the
+# PR title against the Conventional Commits spec. The PR title matters
+# because org policy is squash-only, and GitHub uses the PR title as the
+# squash commit subject.
 #
 # Caller repos are expected to commit a `commitlint.config.mjs` file at
 # the repo root, typically:
@@ -56,6 +58,31 @@ jobs:
           mkdir -p .shared
           curl -sfL "https://raw.githubusercontent.com/jr200-labs/github-action-templates/master/shared/commitlint.config.mjs" \
             -o .shared/commitlint.config.mjs
+
+      - name: Commitlint PR title
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -n "${{ inputs.config-file }}" ]; then
+            config_file="${{ inputs.config-file }}"
+          elif [ -f commitlint.config.mjs ]; then
+            config_file="commitlint.config.mjs"
+          else
+            config_file=".commitlint-fallback.cjs"
+            cat > "${config_file}" <<'EOF'
+          module.exports = { extends: ['@commitlint/config-conventional'] };
+          EOF
+          fi
+
+          printf '%s\n' "${PR_TITLE}" |
+            npx --yes \
+              --package @commitlint/cli@21.0.2 \
+              --package @commitlint/config-conventional@21.0.2 \
+              commitlint --config "${config_file}"
 
       # wagoid action trips EISDIR if configFile is passed as empty string
       # (cosmiconfig then treats the workspace dir as a file). Split into two

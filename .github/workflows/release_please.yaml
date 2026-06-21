@@ -93,6 +93,8 @@ jobs:
     steps:
       - name: Checkout (for config validation)
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Sync shared release config
         shell: bash
@@ -118,6 +120,44 @@ jobs:
             -o .shared/lint-release-please-config.sh
           chmod +x .shared/lint-release-please-config.sh
           .shared/lint-release-please-config.sh "${{ inputs.config-file }}"
+
+      - name: Commitlint unreleased commit subjects
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="$(jq -r '."." // empty' "${{ inputs.manifest-file }}")"
+          if [ -z "${version}" ]; then
+            echo "No root manifest version found; skipping unreleased commit lint."
+            exit 0
+          fi
+
+          include_v="$(jq -r '."include-v-in-tag" // true' "${{ inputs.config-file }}")"
+          if [ "${include_v}" = "false" ]; then
+            tag="${version}"
+          else
+            tag="v${version}"
+          fi
+
+          if ! git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "Tag ${tag} not found; skipping unreleased commit lint."
+            exit 0
+          fi
+
+          git log --format=%s "${tag}..HEAD" > /tmp/unreleased-commit-subjects
+          if [ ! -s /tmp/unreleased-commit-subjects ]; then
+            echo "No unreleased commits found after ${tag}."
+            exit 0
+          fi
+
+          while IFS= read -r subject; do
+            [ -n "${subject}" ] || continue
+            printf '%s\n' "${subject}" |
+              npx --yes \
+                --package @commitlint/cli@21.0.2 \
+                --package @commitlint/config-conventional@21.0.2 \
+                commitlint --config commitlint.config.mjs
+          done < /tmp/unreleased-commit-subjects
 
       - name: Mint app token
         id: app-token

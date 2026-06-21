@@ -35,6 +35,9 @@ workflows:
   - hygiene
 YAML
 touch "$lint_repo/package.json"
+cat > "$lint_repo/package.json" <<'JSON'
+{}
+JSON
 cat > "$lint_repo/pnpm-workspace.yaml" <<'YAML'
 packages:
   - "."
@@ -43,8 +46,10 @@ YAML
     cd "$lint_repo"
     SYNC_BASE_URL="file://$ROOT/shared" ./sync.sh node
     test -f .shared/eslint.config.mjs
+    test -x .husky/commit-msg
     test -f release-please-config.json
     test -f .syncpackrc.yaml
+    grep -q '"prepare": "husky"' package.json
     grep -qx "packages:" pnpm-workspace.yaml
     grep -qx "minimumReleaseAge: 0" pnpm-workspace.yaml
 )
