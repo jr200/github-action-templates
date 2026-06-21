@@ -126,6 +126,28 @@ ensure_pnpm_workspace_defaults() {
     fi
 }
 
+ensure_husky_prepare_script() {
+    local package_file="package.json"
+
+    [ -f "$package_file" ] || return 0
+    if ! command -v jq >/dev/null 2>&1; then
+        warn "jq not found — skipped package.json prepare=husky default"
+        return 0
+    fi
+
+    if jq -e '.scripts.prepare == "husky"' "$package_file" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if jq '.scripts = (.scripts // {}) | .scripts.prepare = "husky"' "$package_file" > "${package_file}.tmp" 2>/dev/null; then
+        mv "${package_file}.tmp" "$package_file"
+        echo "updated: package.json scripts.prepare -> husky"
+    else
+        rm -f "${package_file}.tmp"
+        warn "failed to update package.json scripts.prepare"
+    fi
+}
+
 has_language() {
     local needle="$1" lang
     for lang in $LANGS; do
@@ -227,9 +249,11 @@ done
 download_to "sync.sh" "${SHARED_DIR}/sync.sh" || true
 [ -f "${SHARED_DIR}/sync.sh" ] && chmod +x "${SHARED_DIR}/sync.sh"
 [ -f "${SHARED_DIR}/lint-release-please-config.sh" ] && chmod +x "${SHARED_DIR}/lint-release-please-config.sh"
+[ -f ".husky/commit-msg" ] && chmod +x ".husky/commit-msg"
 
 if has_language node; then
     ensure_pnpm_workspace_defaults
+    ensure_husky_prepare_script
 fi
 
 ensure_gitignore

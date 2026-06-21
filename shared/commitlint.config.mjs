@@ -63,5 +63,23 @@ export default {
     'banned-words': [2, 'always'],
     'body-max-lines': [2, 'always'],
     'body-max-line-length': [2, 'always', 100],
+    'type-enum': [
+      2,
+      'always',
+      [
+        'feat',
+        'fix',
+        'perf',
+        'revert',
+        'deps',
+        'refactor',
+        'test',
+        'build',
+        'docs',
+        'chore',
+        'ci',
+        'style',
+      ],
+    ],
   },
 };
