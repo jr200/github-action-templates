@@ -14,6 +14,19 @@ ref: shared-v0.1.0
 workflows:
   - hygiene
 YAML
+    mkdir -p "$repo_dir/.github/workflows"
+    cat > "$repo_dir/.github/workflows/ci.yaml" <<'YAML'
+name: ci
+
+on:
+  pull_request:
+
+jobs:
+  ci:
+    uses: jr200-labs/github-action-templates/.github/workflows/ci_npmjs.yaml@master
+  commitlint:
+    uses: jr200-labs/github-action-templates/.github/workflows/lint_commits.yaml@master
+YAML
     cat > "$repo_dir/package.json" <<'JSON'
 {
   "scripts": {
@@ -47,6 +60,8 @@ make_consumer_repo "$consumer_repo"
     SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared
     test -f .github/workflows/commitlint.yaml
     test -f .github/workflows/sync-shared-drift.yaml
+    test -f .github/workflows/ci.yaml
+    ! yq -e '.jobs.commitlint' .github/workflows/ci.yaml >/dev/null 2>&1
     test -x .githooks/commit-msg
     test -x .githooks/lint-message-text.sh
     test -f cog.toml

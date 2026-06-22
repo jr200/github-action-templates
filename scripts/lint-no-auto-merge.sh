@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Lint GitHub Actions workflows for forbidden auto-merge / auto-approve
-# patterns. The merge gate (CODEOWNERS + branch ruleset, WG-105) is
-# only a real gate if no workflow can sidestep it. This lint catches
-# any consumer that grew a `gh pr merge` / `--auto-merge` / `gh pr
-# review --approve` sneak path before it lands.
+# patterns. The branch ruleset gate is only a real gate if no workflow can
+# sidestep it. This lint catches any consumer that grew a `gh pr merge` /
+# `--auto-merge` / `gh pr review --approve` sneak path before it lands.
 #
 # Forbidden patterns (regex-tested against every line in
 # .github/workflows/*.y[a]ml):
@@ -40,12 +39,12 @@ if [[ ${#files[@]} -eq 0 ]]; then
   exit 0
 fi
 
-# One alternation regex; trim trailing whitespace before grep so end-of-line
-# patterns match cleanly. -P (perl regex) for robust word boundaries.
-pattern='gh pr merge\b|gh pr review[^|]*--approve\b|--auto-merge\b|gh pr merge[^|]*--auto\b|peter-evans/enable-pull-request-automerge|pascalgn/automerge-action'
+# One alternation regex. Use extended grep rather than GNU-only `grep -P`
+# because maintainers run this script on macOS as well as Linux runners.
+pattern='gh pr merge([[:space:]]|$)|gh pr review[^|]*--approve([[:space:]]|$)|--auto-merge([[:space:]]|$)|gh pr merge[^|]*--auto([[:space:]]|$)|peter-evans/enable-pull-request-automerge|pascalgn/automerge-action'
 
 # Allow lines explicitly opted-in via trailing "# lint-no-auto-merge:allow".
-hits=$(grep -nP "$pattern" "${files[@]}" 2>/dev/null | grep -v 'lint-no-auto-merge:allow' || true)
+hits=$(grep -nE "$pattern" "${files[@]}" 2>/dev/null | grep -v 'lint-no-auto-merge:allow' || true)
 
 if [[ -n "$hits" ]]; then
   echo "ERROR: forbidden auto-merge / auto-approve patterns found:" >&2
