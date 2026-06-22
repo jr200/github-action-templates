@@ -64,6 +64,17 @@ if [ "$allowed_count" -ne 2 ]; then
     exit 1
 fi
 
+pnpm_setup_line=$(grep -n 'uses: pnpm/action-setup@' "$renovate_workflow" | head -n1 | cut -d: -f1 || true)
+repair_line=$(grep -n 'repair-renovate-shared-workflow-branches.sh' "$renovate_workflow" | head -n1 | cut -d: -f1 || true)
+if [ -z "$pnpm_setup_line" ] || [ -z "$repair_line" ] || [ "$pnpm_setup_line" -ge "$repair_line" ]; then
+    echo "renovate workflow must install pnpm before repairing shared-ref branches" >&2
+    exit 1
+fi
+if ! grep -A4 'uses: pnpm/action-setup@' "$renovate_workflow" | grep -q 'run_install: false'; then
+    echo "renovate workflow pnpm setup must not install dependencies" >&2
+    exit 1
+fi
+
 if [ ! -x "$report_linter" ]; then
     echo "missing executable Renovate report linter: $report_linter" >&2
     exit 1
