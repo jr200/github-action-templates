@@ -49,6 +49,14 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Install message text policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sfL "https://raw.githubusercontent.com/jr200-labs/github-action-templates/master/shared/.githooks/lint-message-text.sh" \
+            -o /tmp/lint-message-text.sh
+          chmod +x /tmp/lint-message-text.sh
+
       - name: Verify PR title
         if: github.event_name == 'pull_request'
         env:
@@ -58,6 +66,7 @@ jobs:
           set -euo pipefail
           title_file="$(mktemp)"
           printf '%s\n' "${PR_TITLE}" > "${title_file}"
+          /tmp/lint-message-text.sh "PR title" "${title_file}"
           cog verify --file "${title_file}"
           rm -f "${title_file}"
 
@@ -97,5 +106,12 @@ jobs:
               range="HEAD"
             fi
           fi
+
+          while IFS= read -r sha; do
+            message_file="$(mktemp)"
+            git log -1 --format=%B "${sha}" > "${message_file}"
+            /tmp/lint-message-text.sh "commit ${sha}" "${message_file}"
+            rm -f "${message_file}"
+          done < <(git rev-list --reverse "${range}")
 
           cog check "${range}"

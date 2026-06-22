@@ -15,4 +15,5 @@ EOF
   exit 1
 fi
 
+"$(dirname "$0")/lint-message-text.sh" "commit message" "$1"
 cog verify --file "$1"
