@@ -234,9 +234,15 @@ jobs:
 
       - name: Set up pnpm for shared branch repair
         if: success() && inputs.dry-run == '' && hashFiles('pnpm-lock.yaml') != ''
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           run_install: false
+
+      - name: Set up Node for shared branch repair
+        if: success() && inputs.dry-run == '' && hashFiles('pnpm-lock.yaml') != ''
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.17.0'
 
       - name: Repair generated shared workflow drift on Renovate branches
         if: success() && inputs.dry-run == ''

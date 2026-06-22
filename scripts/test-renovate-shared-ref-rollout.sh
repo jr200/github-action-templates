@@ -64,9 +64,19 @@ if [ "$allowed_count" -ne 2 ]; then
     exit 1
 fi
 
-pnpm_setup_line=$(grep -n 'uses: pnpm/action-setup@' "$renovate_workflow" | head -n1 | cut -d: -f1 || true)
+node_setup_line=$(grep -n 'uses: actions/setup-node@' "$renovate_workflow" | tail -n1 | cut -d: -f1 || true)
+pnpm_setup_line=$(grep -n 'uses: pnpm/action-setup@' "$renovate_workflow" | tail -n1 | cut -d: -f1 || true)
 repair_line=$(grep -n 'repair-renovate-shared-workflow-branches.sh' "$renovate_workflow" | head -n1 | cut -d: -f1 || true)
-if [ -z "$pnpm_setup_line" ] || [ -z "$repair_line" ] || [ "$pnpm_setup_line" -ge "$repair_line" ]; then
+if [ -z "$node_setup_line" ] || [ -z "$pnpm_setup_line" ] || [ -z "$repair_line" ] \
+    || [ "$pnpm_setup_line" -ge "$node_setup_line" ] || [ "$node_setup_line" -ge "$repair_line" ]; then
+    echo "renovate workflow must install pnpm and node before repairing shared-ref branches" >&2
+    exit 1
+fi
+if ! grep -q 'uses: actions/setup-node@v6' "$renovate_workflow"; then
+    echo "renovate workflow must use the current setup-node action" >&2
+    exit 1
+fi
+if ! grep -q 'uses: pnpm/action-setup@v6' "$renovate_workflow"; then
     echo "renovate workflow must install pnpm before repairing shared-ref branches" >&2
     exit 1
 fi
