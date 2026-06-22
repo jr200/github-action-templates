@@ -126,6 +126,14 @@ jobs:
         with:
           install-only: true
 
+      - name: Install message text policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sfL "https://raw.githubusercontent.com/jr200-labs/github-action-templates/master/shared/.githooks/lint-message-text.sh" \
+            -o /tmp/lint-message-text.sh
+          chmod +x /tmp/lint-message-text.sh
+
       - name: Verify unreleased commit subjects
         shell: bash
         run: |
@@ -159,6 +167,7 @@ jobs:
             [ -n "${subject}" ] || continue
             subject_file="$(mktemp)"
             printf '%s\n' "${subject}" > "${subject_file}"
+            /tmp/lint-message-text.sh "unreleased commit subject" "${subject_file}"
             cog verify --file "${subject_file}"
             rm -f "${subject_file}"
           done < /tmp/unreleased-commit-subjects

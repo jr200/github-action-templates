@@ -2,7 +2,7 @@
   "$schema": "./MANIFEST.schema.json",
   "_comment": "Declares files synced from this repo's shared/ dir into consumer repos. Changes here are released through shared-v* refs and GitHub Releases. See sync.sh. Three destination modes: cache (→ .shared/, gitignored, re-fetched in CI), committed (→ repo root, tracked, drift-checked), and merged (→ repo root, tracked, drift-checked; deep-merged via yq with optional repo-local override file).",
   "common": {
-    "committed": [".githooks/commit-msg", "cog.toml"],
+    "committed": [".githooks/commit-msg", ".githooks/lint-message-text.sh", "cog.toml"],
     "cache": ["lint-release-please-config.sh"],
     "merged": [
       {

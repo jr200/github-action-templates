@@ -1,8 +1,9 @@
 name: template-lint-pr-metadata
 
 # Reusable workflow that fails a PR when the branch name, title, or body
-# contains any word listed in the BANNED_COMMIT_WORDS Actions variable
-# (CSV). Word-boundary, case-insensitive match.
+# contains any default blocked attribution term or any word listed in
+# the BANNED_COMMIT_WORDS Actions variable (CSV). Word-boundary,
+# case-insensitive match.
 #
 # Pair with template-lint-commits.yaml — that handles commit messages
 # and PR titles — this covers PR body and branch name.
@@ -34,19 +35,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -z "${BANNED_COMMIT_WORDS:-}" ]; then
-            echo "BANNED_COMMIT_WORDS is empty — nothing to enforce."
-            exit 0
-          fi
-
           fail=0
+          default_blocked_terms="claude,codex,kilo,composer,grok"
+          if [ -n "${BANNED_COMMIT_WORDS:-}" ]; then
+            banned_words="${default_blocked_terms},${BANNED_COMMIT_WORDS}"
+          else
+            banned_words="${default_blocked_terms}"
+          fi
 
           scan() {
             local label="$1"
             local text="$2"
             local hits=()
             local IFS=','
-            for raw in $BANNED_COMMIT_WORDS; do
+            for raw in $banned_words; do
               local w
               w="$(echo "$raw" | xargs)"
               [ -z "$w" ] && continue

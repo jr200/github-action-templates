@@ -25,6 +25,7 @@ make_consumer_repo "$consumer_repo"
     test -f .github/workflows/commitlint.yaml
     test -f .github/workflows/sync-shared-drift.yaml
     test -x .githooks/commit-msg
+    test -x .githooks/lint-message-text.sh
     test -f cog.toml
     test "$(git config --get core.hooksPath)" = ".githooks"
     STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
@@ -52,6 +53,7 @@ YAML
     SYNC_BASE_URL="file://$ROOT/shared" ./sync.sh node
     test -f .shared/eslint.config.mjs
     test -x .githooks/commit-msg
+    test -x .githooks/lint-message-text.sh
     test -f cog.toml
     test -f release-please-config.json
     test -f .syncpackrc.yaml

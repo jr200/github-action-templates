@@ -89,6 +89,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Test shared sync scripts
         run: |
+          ./scripts/test-message-text-policy.sh
           ./scripts/test-shared-sync.sh
           ./scripts/test-repair-renovate-shared-workflow-branches.sh
           bash ./scripts/test-apply-rulesets-actions-policy.sh

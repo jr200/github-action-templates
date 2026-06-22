@@ -24,6 +24,7 @@ WORKFLOWS_DIR=".github/workflows"
 STRICT="${STRICT:-0}"
 COMMON_FILES=(
     ".githooks/commit-msg"
+    ".githooks/lint-message-text.sh"
     "cog.toml"
 )
 
@@ -149,6 +150,7 @@ case "$MODE" in
             fi
         done
         [ -f ".githooks/commit-msg" ] && chmod +x ".githooks/commit-msg"
+        [ -f ".githooks/lint-message-text.sh" ] && chmod +x ".githooks/lint-message-text.sh"
         ensure_git_hooks_path
         if [ "$MODE" = "bootstrap" ]; then
             fetch "scripts/sync-shared" "scripts/sync-shared" || warn "fetch self failed"
