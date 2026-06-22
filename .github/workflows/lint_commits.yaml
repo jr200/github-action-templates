@@ -56,4 +56,10 @@ jobs:
 
       - name: Check commits
         shell: bash
-        run: cog check
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            cog check "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            cog check --from-latest-tag
+          fi
