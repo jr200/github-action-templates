@@ -124,6 +124,8 @@ jobs:
       - name: Setup uv for Python post-upgrade tasks
         if: ${{ hashFiles('pyproject.toml') != '' }}
         uses: astral-sh/setup-uv@v8.2.0
+        with:
+          version: 0.11.23
 
       - name: Configure git HTTPS auth for post-upgrade tasks
         shell: bash
