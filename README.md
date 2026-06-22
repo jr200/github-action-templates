@@ -14,9 +14,9 @@ GAT releases the next `shared-vX.Y.Z` tag automatically when canonical
 consumer workflows or shared files change on `master`, including a GitHub
 Release with generated notes.
 
-## Merging is human-only
+## Merge Policy
 
-Both consumer orgs (`whengas/`, `jr200-labs/`) enforce default-branch protection centrally: rulesets require an approving review from a non-self reviewer and repo settings disable auto-merge + enable branch auto-delete on merge. The `lint-no-auto-merge` workflow in `hygiene` fails CI if any caller workflow invokes `gh pr merge`, `--auto-merge`, or `gh pr review --approve`. Bots build, test, and publish artifacts; humans merge.
+Both consumer orgs (`whengas/`, `jr200-labs/`) enforce default-branch protection centrally: rulesets require PRs, repo settings enable auto-merge + branch auto-delete, and the `lint-no-auto-merge` workflow in `hygiene` fails CI if any caller workflow invokes `gh pr merge`, `--auto-merge`, or `gh pr review --approve`. The only workflow-triggered auto-merge exception is the generated `sync-shared-drift` repair PR, which is constrained to the canonical sync branch, title, and generated file set. Bots build, test, and publish artifacts; humans merge everything else.
 
 ## Important
 

@@ -60,6 +60,9 @@ while [ "$#" -gt 0 ]; do
       shift
       input_file="$1"
       ;;
+    -F|--field|--raw-field)
+      shift
+      ;;
     --jq|-q|--paginate|--silent)
       if [ "$1" = "--jq" ] || [ "$1" = "-q" ]; then
         shift
@@ -105,8 +108,14 @@ case "$method:$endpoint" in
   "GET:/repos/whengas/whengas-faker")
     printf '{"allow_auto_merge":false,"delete_branch_on_merge":true,"allow_update_branch":true}\n'
     ;;
+  "PATCH:/repos/whengas/whengas-faker")
+    true
+    ;;
   "GET:/repos/jr200-labs/public-repo")
     printf '{"allow_auto_merge":false,"delete_branch_on_merge":true,"allow_update_branch":true}\n'
+    ;;
+  "PATCH:/repos/jr200-labs/public-repo")
+    true
     ;;
   "GET:/orgs/whengas/actions/permissions/fork-pr-workflows-private-repos")
     printf '{"run_workflows_from_fork_pull_requests":true,"send_write_tokens_to_workflows":true,"send_secrets_and_variables":true,"require_approval_for_fork_pr_workflows":true}\n'

@@ -1,11 +1,11 @@
 name: template-lint-no-auto-merge
 
 # Reusable workflow: fails if any .github/workflows/*.yaml in the caller
-# repo invokes auto-merge or auto-approve patterns. The CODEOWNERS +
-# branch ruleset gate (WG-105) is only a real gate if no consumer
-# workflow can sidestep it. This lint catches a `gh pr merge`,
-# `gh pr review --approve`, `--auto-merge`, or third-party auto-merge
-# action before it lands.
+# repo invokes auto-merge or auto-approve patterns. Workflow-triggered
+# auto-merge is only allowed for tightly constrained generated repair PRs
+# with an explicit `lint-no-auto-merge:allow` annotation. This lint catches a
+# `gh pr merge`, `gh pr review --approve`, `--auto-merge`, or third-party
+# auto-merge action before it lands.
 #
 # No inputs beyond the workflows-dir override. No secrets.
 

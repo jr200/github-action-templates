@@ -9,7 +9,7 @@
 # the script PUTs the canonical body to it (updating in place); otherwise
 # POSTs a new one. Repo-level merge hygiene settings are also reconciled on
 # every targeted repo:
-#   - allow_auto_merge=false
+#   - allow_auto_merge=true
 #   - delete_branch_on_merge=true
 #   - allow_update_branch=true
 #   - require_approval_for_fork_pr_workflows=false
@@ -46,7 +46,7 @@ Options:
   --ruleset <name>     Limit reconciliation to one ruleset from targets.yaml.
   --repo <org/repo>    Limit repo-scope reconciliation to one or more repos.
                        Repeat flag to target multiple repos.
-  --skip-auto-merge    Skip PATCH allow_auto_merge=false enforcement.
+  --skip-auto-merge    Skip PATCH allow_auto_merge=true enforcement.
   -h, --help           Show this help.
 
 Examples:
@@ -340,10 +340,10 @@ reconcile_repo_settings() {
             delete_branch=$(jq -r '.delete_branch_on_merge' <<<"$current")
             update_branch=$(jq -r '.allow_update_branch' <<<"$current")
 
-            if [ "$auto_merge" != "false" ] || [ "$delete_branch" != "true" ] || [ "$update_branch" != "true" ]; then
-                echo "  repo/$org/$repo: reconcile allow_auto_merge=false, delete_branch_on_merge=true, allow_update_branch=true (drift detected)"
+            if [ "$auto_merge" != "true" ] || [ "$delete_branch" != "true" ] || [ "$update_branch" != "true" ]; then
+                echo "  repo/$org/$repo: reconcile allow_auto_merge=true, delete_branch_on_merge=true, allow_update_branch=true (drift detected)"
                 run gh api -X PATCH "/repos/$org/$repo" \
-                    -F allow_auto_merge=false \
+                    -F allow_auto_merge=true \
                     -F delete_branch_on_merge=true \
                     -F allow_update_branch=true \
                     --silent
