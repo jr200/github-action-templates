@@ -145,55 +145,6 @@ ensure_git_hooks_path() {
     echo "updated: git core.hooksPath -> .githooks"
 }
 
-cleanup_legacy_commitlint() {
-    local changed=0
-
-    for f in commitlint.config.js commitlint.config.cjs commitlint.config.mjs .shared/commitlint.config.mjs; do
-        if [ -f "$f" ]; then
-            rm -f "$f"
-            echo "removed: $f"
-        fi
-    done
-
-    if [ -f ".husky/commit-msg" ] && grep -qi 'commitlint' ".husky/commit-msg" 2>/dev/null; then
-        rm -f ".husky/commit-msg"
-        echo "removed: .husky/commit-msg"
-    fi
-
-    [ -f "package.json" ] || return 0
-
-    if ! command -v jq >/dev/null 2>&1; then
-        warn "jq not found — skipped legacy commitlint package cleanup"
-        return 0
-    fi
-
-    if jq '
-        del(.scripts.prepare | select(. == "husky" or . == "husky install"))
-        | del(.scripts | select(. == {}))
-        | del(.dependencies.husky, .devDependencies.husky, .optionalDependencies.husky)
-        | del(.dependencies["@commitlint/cli"], .devDependencies["@commitlint/cli"], .optionalDependencies["@commitlint/cli"])
-        | del(.dependencies["@commitlint/config-conventional"], .devDependencies["@commitlint/config-conventional"], .optionalDependencies["@commitlint/config-conventional"])
-        | del(.dependencies | select(. == {}))
-        | del(.devDependencies | select(. == {}))
-        | del(.optionalDependencies | select(. == {}))
-    ' package.json > package.json.tmp; then
-        if ! cmp -s package.json package.json.tmp; then
-            mv package.json.tmp package.json
-            changed=1
-        else
-            rm -f package.json.tmp
-        fi
-    else
-        rm -f package.json.tmp
-        warn "failed to clean legacy commitlint entries from package.json"
-        return 0
-    fi
-
-    if [ "$changed" -eq 1 ]; then
-        echo "updated: package.json legacy commitlint cleanup"
-    fi
-}
-
 has_language() {
     local needle="$1" lang
     for lang in $LANGS; do
@@ -300,7 +251,6 @@ download_to "sync.sh" "${SHARED_DIR}/sync.sh" || true
 
 if has_language node; then
     ensure_pnpm_workspace_defaults
-    cleanup_legacy_commitlint
 fi
 
 ensure_git_hooks_path
