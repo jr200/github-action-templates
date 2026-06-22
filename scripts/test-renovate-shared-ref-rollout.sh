@@ -35,6 +35,17 @@ for filter in "${required_filters[@]}"; do
     fi
 done
 
+if ! jq -e '
+  .packageRules[]?
+  | select((.matchPackageNames // []) | index("jr200-labs/github-action-templates"))
+  | select((.groupSlug // "") == "shared-workflow-ref")
+  | (.postUpgradeTasks.commands // [])
+  | any(contains("consumers/scripts/sync-shared") and contains(".github/.shared-config.yaml"))
+' "$config" >/dev/null; then
+    echo "shared-ref post-upgrade task must refresh scripts/sync-shared from the bumped shared ref before running it" >&2
+    exit 1
+fi
+
 if [ ! -x "$report_linter" ]; then
     echo "missing executable Renovate report linter: $report_linter" >&2
     exit 1

@@ -95,7 +95,9 @@
       "groupName": "shared workflow ref",
       "groupSlug": "shared-workflow-ref",
       "postUpgradeTasks": {
-        "commands": ["./scripts/sync-shared"],
+        "commands": [
+          "ref=$(sed -nE \"s/^[[:space:]]*ref:[[:space:]]*['\\\"]?([^'\\\"[:space:]]+).*$/\\1/p\" .github/.shared-config.yaml | head -n1) && curl -sfL \"https://raw.githubusercontent.com/jr200-labs/github-action-templates/${ref}/consumers/scripts/sync-shared\" -o scripts/sync-shared && chmod +x scripts/sync-shared && ./scripts/sync-shared"
+        ],
         "fileFilters": [
           ".github/.shared-config.yaml",
           ".github/workflows/*.yaml",
