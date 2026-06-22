@@ -122,7 +122,7 @@ jobs:
           .shared/lint-release-please-config.sh "${{ inputs.config-file }}"
 
       - name: Install Cocogitto
-        uses: cocogitto/cocogitto-action@v4
+        uses: cocogitto/cocogitto-action@v4.2.0
         with:
           install-only: true
 
