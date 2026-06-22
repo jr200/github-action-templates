@@ -14,7 +14,7 @@
 #   Every entry under .packages MUST set release-type explicitly
 #   (or inherit from a top-level `release-type`). Marker-file
 #   cross-checks were tried and dropped — repos legitimately mix
-#   release-type=simple with a package.json (devDeps for commitlint etc),
+#   release-type=simple with a package.json (devDeps, tooling metadata, etc.),
 #   making the cross-check more false-positive than catch.
 #
 # Usage: .shared/lint-release-please-config.sh [config-file]

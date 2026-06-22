@@ -18,7 +18,7 @@ Reusable GitHub Actions workflows + canonical caller workflows for jr200-labs / 
 # .github/.shared-config.yaml
 ref: shared-v0.1.0
 workflows:
-  - hygiene        # commitlint + lint-pr-metadata + drift-check + renovate + version downgrade guard
+  - hygiene        # conventional commits + lint-pr-metadata + drift-check + renovate + version downgrade guard
   - go             # ci-go
   - docker         # build-docker-image
   - release        # release-please
@@ -46,7 +46,7 @@ Current groups:
 
 | Group | Pulls in | Use when |
 |---|---|---|
-| `hygiene` | lint-pr-metadata, commitlint, drift-check, renovate, lint-version-downgrades | every repo that wants any CI |
+| `hygiene` | lint-pr-metadata, commitlint (Cocogitto conventional-commit check), drift-check, renovate, lint-version-downgrades | every repo that wants any CI |
 | `python` | ci-python | repo has `pyproject.toml` |
 | `node` | ci-node | repo has `package.json` |
 | `node-bench` | node-bench | repo has a Node/pnpm benchmark workflow and wants the shared manual benchmark caller |

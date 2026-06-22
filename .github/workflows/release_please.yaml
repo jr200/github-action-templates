@@ -121,7 +121,12 @@ jobs:
           chmod +x .shared/lint-release-please-config.sh
           .shared/lint-release-please-config.sh "${{ inputs.config-file }}"
 
-      - name: Commitlint unreleased commit subjects
+      - name: Install Cocogitto
+        uses: cocogitto/cocogitto-action@v4
+        with:
+          install-only: true
+
+      - name: Verify unreleased commit subjects
         shell: bash
         run: |
           set -euo pipefail
@@ -152,11 +157,10 @@ jobs:
 
           while IFS= read -r subject; do
             [ -n "${subject}" ] || continue
-            printf '%s\n' "${subject}" |
-              npx --yes \
-                --package @commitlint/cli@21.0.2 \
-                --package @commitlint/config-conventional@21.0.2 \
-                commitlint --config commitlint.config.mjs
+            subject_file="$(mktemp)"
+            printf '%s\n' "${subject}" > "${subject_file}"
+            cog verify --file "${subject_file}"
+            rm -f "${subject_file}"
           done < /tmp/unreleased-commit-subjects
 
       - name: Mint app token

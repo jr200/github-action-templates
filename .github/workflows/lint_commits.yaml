@@ -1,17 +1,9 @@
 name: template-lint-commits
 
 # Reusable workflow that validates all commits in a pull request and the
-# PR title against the Conventional Commits spec. The PR title matters
-# because org policy is squash-only, and GitHub uses the PR title as the
-# squash commit subject.
-#
-# Caller repos are expected to commit a `commitlint.config.mjs` file at
-# the repo root, typically:
-#
-#   export default { extends: ['@commitlint/config-conventional'] }
-#
-# The action picks it up automatically. An inline fallback config is
-# provided for repos that don't ship one yet.
+# PR title against the Conventional Commits spec using Cocogitto. The PR
+# title matters because org policy is squash-only, and GitHub uses the PR
+# title as the squash commit subject.
 
 on:
   workflow_call:
@@ -22,12 +14,12 @@ on:
         type: string
         default: ''
       fail-on-warnings:
-        description: 'Treat commitlint warnings as failures'
+        description: 'Deprecated; retained for caller compatibility'
         required: false
         type: boolean
         default: false
       config-file:
-        description: 'Path to commitlint config file (optional; auto-detected otherwise)'
+        description: 'Deprecated; retained for caller compatibility'
         required: false
         type: string
         default: ''
@@ -38,68 +30,30 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    env:
-      # Surfaced from the caller's org/repo Actions vars so the shared
-      # commitlint config (shared/commitlint.config.mjs) can enforce the
-      # banned-words rule. Empty value disables the rule cleanly.
-      BANNED_COMMIT_WORDS: ${{ vars.BANNED_COMMIT_WORDS }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
-      # Bootstrap the cached shared commitlint config. Consumers re-export
-      # it from a top-level commitlint.config.mjs; .shared/ is gitignored
-      # so we always fetch fresh in CI. Mirrors the pattern in ci_go.yaml.
-      - name: Bootstrap shared commitlint config
-        shell: bash
-        run: |
-          mkdir -p .shared
-          curl -sfL "https://raw.githubusercontent.com/jr200-labs/github-action-templates/master/shared/commitlint.config.mjs" \
-            -o .shared/commitlint.config.mjs
+      - name: Install Cocogitto
+        uses: cocogitto/cocogitto-action@v4
+        with:
+          install-only: true
 
-      - name: Commitlint PR title
+      - name: Verify PR title
         if: github.event_name == 'pull_request'
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
         shell: bash
         run: |
           set -euo pipefail
+          title_file="$(mktemp)"
+          printf '%s\n' "${PR_TITLE}" > "${title_file}"
+          cog verify --file "${title_file}"
+          rm -f "${title_file}"
 
-          if [ -n "${{ inputs.config-file }}" ]; then
-            config_file="${{ inputs.config-file }}"
-          elif [ -f commitlint.config.mjs ]; then
-            config_file="commitlint.config.mjs"
-          else
-            config_file=".commitlint-fallback.cjs"
-            cat > "${config_file}" <<'EOF'
-          module.exports = { extends: ['@commitlint/config-conventional'] };
-          EOF
-          fi
-
-          printf '%s\n' "${PR_TITLE}" |
-            npx --yes \
-              --package @commitlint/cli@21.0.2 \
-              --package @commitlint/config-conventional@21.0.2 \
-              commitlint --config "${config_file}"
-
-      # wagoid action trips EISDIR if configFile is passed as empty string
-      # (cosmiconfig then treats the workspace dir as a file). Split into two
-      # steps so we only pass configFile when the caller actually set it.
-      - name: Commitlint (auto-detect config)
-        if: inputs.config-file == ''
-        uses: wagoid/commitlint-github-action@v6
-        env:
-          BANNED_COMMIT_WORDS: ${{ vars.BANNED_COMMIT_WORDS }}
-        with:
-          failOnWarnings: ${{ inputs.fail-on-warnings }}
-
-      - name: Commitlint (explicit config)
-        if: inputs.config-file != ''
-        uses: wagoid/commitlint-github-action@v6
-        env:
-          BANNED_COMMIT_WORDS: ${{ vars.BANNED_COMMIT_WORDS }}
-        with:
-          failOnWarnings: ${{ inputs.fail-on-warnings }}
-          configFile: ${{ inputs.config-file }}
+      - name: Check commits
+        shell: bash
+        run: cog check

@@ -44,12 +44,15 @@ packages:
 YAML
 (
     cd "$lint_repo"
+    git init -q
     SYNC_BASE_URL="file://$ROOT/shared" ./sync.sh node
     test -f .shared/eslint.config.mjs
-    test -x .husky/commit-msg
+    test -x .githooks/commit-msg
+    test -f cog.toml
     test -f release-please-config.json
     test -f .syncpackrc.yaml
-    grep -q '"prepare": "husky"' package.json
+    test "$(git config --get core.hooksPath)" = ".githooks"
+    ! grep -q '"prepare": "husky"' package.json
     grep -qx "packages:" pnpm-workspace.yaml
     grep -qx "minimumReleaseAge: 0" pnpm-workspace.yaml
 )
