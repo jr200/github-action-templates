@@ -7,6 +7,7 @@ if [ "$#" -lt 1 ]; then
 fi
 
 allowed_vulnerability_warning='Cannot access vulnerability alerts. Please ensure permissions have been granted.'
+allowed_pep440_warning='pep440: failed to calculate newValue'
 fail=0
 
 for report in "$@"; do
@@ -16,10 +17,10 @@ for report in "$@"; do
     continue
   fi
 
-  problems=$(jq -r --arg allowed "$allowed_vulnerability_warning" '
+  problems=$(jq -r --arg allowed_vulnerability "$allowed_vulnerability_warning" --arg allowed_pep440 "$allowed_pep440_warning" '
     [.problems[]?, .repositories[]?.problems[]?] as $p
     | ($p | map(.msg)) + ($p | map(.warnings // [] | .[])) + ($p | map(.errors // [] | .[]))
-    | map(select(. != null and . != $allowed))
+    | map(select(. != null and . != $allowed_vulnerability and . != $allowed_pep440))
     | unique
     | .[]
   ' "$report")

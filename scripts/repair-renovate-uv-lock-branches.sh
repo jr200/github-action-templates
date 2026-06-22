@@ -11,11 +11,6 @@ set -euo pipefail
 base_ref="${1:-origin/${GITHUB_REF_NAME:-master}}"
 branch_glob="${2:-renovate/*}"
 
-if ! command -v uv >/dev/null 2>&1; then
-  echo "repair-renovate-uv-lock: uv not found on PATH" >&2
-  exit 2
-fi
-
 if [[ -n "${RENOVATE_REPAIR_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
   git remote set-url origin "https://x-access-token:${RENOVATE_REPAIR_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 fi
@@ -48,6 +43,11 @@ while IFS= read -r remote_ref; do
 
   checked=$((checked + 1))
   echo "repair-renovate-uv-lock: checking ${branch}" >&2
+
+  if ! command -v uv >/dev/null 2>&1; then
+    echo "repair-renovate-uv-lock: uv not found on PATH" >&2
+    exit 2
+  fi
 
   git checkout -B "$branch" "$remote_ref"
 
