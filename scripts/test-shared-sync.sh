@@ -104,19 +104,19 @@ YAML
     git init -q
     SYNC_BASE_URL="file://$ROOT/shared" ./sync.sh node
     test -f .shared/eslint.config.mjs
-    test ! -f .shared/commitlint.config.mjs
-    test ! -f commitlint.config.mjs
-    test ! -f .husky/commit-msg
+    test -f .shared/commitlint.config.mjs
+    test -f commitlint.config.mjs
+    test -f .husky/commit-msg
     test -x .githooks/commit-msg
     test -x .githooks/lint-message-text.sh
     test -f cog.toml
     test -f release-please-config.json
     test -f .syncpackrc.yaml
     test "$(git config --get core.hooksPath)" = ".githooks"
-    ! grep -q '"prepare": "husky"' package.json
-    ! grep -q '"@commitlint/cli"' package.json
-    ! grep -q '"@commitlint/config-conventional"' package.json
-    ! grep -q '"husky"' package.json
+    grep -q '"prepare": "husky"' package.json
+    grep -q '"@commitlint/cli"' package.json
+    grep -q '"@commitlint/config-conventional"' package.json
+    grep -q '"husky": "9.1.7"' package.json
     grep -q '"vitest": "3.2.4"' package.json
     grep -qx "packages:" pnpm-workspace.yaml
     grep -qx "minimumReleaseAge: 0" pnpm-workspace.yaml
