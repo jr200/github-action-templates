@@ -126,6 +126,12 @@ jobs:
         with:
           install-only: true
 
+      - name: Configure Git identity for Cocogitto
+        shell: bash
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Install message text policy
         shell: bash
         run: |
