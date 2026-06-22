@@ -9,58 +9,24 @@ config="$ROOT/default.json"
 report_linter="$ROOT/scripts/lint-renovate-report-problems.sh"
 renovate_workflow="$ROOT/.github/workflows/renovate.yaml"
 
-required_filters=(
-    ".github/.shared-config.yaml"
-    ".github/workflows/*.yaml"
-    ".githooks/commit-msg"
-    ".githooks/lint-message-text.sh"
-    ".husky/commit-msg"
-    "cog.toml"
-    "commitlint.config.*"
-    "package.json"
-    "pnpm-lock.yaml"
-    "scripts/sync-shared"
-    "scripts/sync-shared-drift-check"
-)
-
-for filter in "${required_filters[@]}"; do
-    if ! jq -e --arg filter "$filter" '
-      .packageRules[]?
-      | select((.matchPackageNames // []) | index("jr200-labs/github-action-templates"))
-      | select((.groupSlug // "") == "shared-workflow-ref")
-      | (.postUpgradeTasks.fileFilters // [])
-      | index($filter)
-    ' "$config" >/dev/null; then
-        echo "missing shared-ref file filter: $filter" >&2
-        exit 1
-    fi
-done
-
-if ! jq -e '
+if jq -e '
   .packageRules[]?
   | select((.matchPackageNames // []) | index("jr200-labs/github-action-templates"))
   | select((.groupSlug // "") == "shared-workflow-ref")
-  | (.postUpgradeTasks.commands // [])
-  | any(contains("consumers/scripts/sync-shared") and contains(".github/.shared-config.yaml"))
+  | has("postUpgradeTasks")
 ' "$config" >/dev/null; then
-    echo "shared-ref post-upgrade task must refresh scripts/sync-shared from the bumped shared ref before running it" >&2
+    echo "shared-ref rollout must use the reusable workflow repair step, not Renovate post-upgrade tasks" >&2
     exit 1
 fi
 
-if ! jq -e '
-  .packageRules[]?
-  | select((.matchPackageNames // []) | index("jr200-labs/github-action-templates"))
-  | select((.groupSlug // "") == "shared-workflow-ref")
-  | (.postUpgradeTasks.commands // [])
-  | any(contains("pnpm-lock.yaml") and contains("pnpm install --lockfile-only"))
-' "$config" >/dev/null; then
-    echo "shared-ref post-upgrade task must refresh pnpm-lock.yaml after package cleanup" >&2
+if grep -q 'consumers/scripts/sync-shared.*pnpm install --lockfile-only' "$renovate_workflow"; then
+    echo "renovate workflow must not allow the removed shared-ref post-upgrade command" >&2
     exit 1
 fi
 
-allowed_count=$(grep -c 'RENOVATE_ALLOWED_COMMANDS: .*consumers/scripts/sync-shared.*pnpm install --lockfile-only' "$renovate_workflow" || true)
+allowed_count=$(grep -c 'RENOVATE_ALLOWED_COMMANDS: .*\\./scripts/sync-shared' "$renovate_workflow" || true)
 if [ "$allowed_count" -ne 2 ]; then
-    echo "renovate workflow must allow the shared-ref rollout command in both Renovate passes" >&2
+    echo "renovate workflow must allow the local sync-shared command in both Renovate passes" >&2
     exit 1
 fi
 
