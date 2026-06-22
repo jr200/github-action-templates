@@ -7,6 +7,7 @@ trap 'rm -rf "$TMPDIR"' EXIT
 
 config="$ROOT/default.json"
 report_linter="$ROOT/scripts/lint-renovate-report-problems.sh"
+renovate_workflow="$ROOT/.github/workflows/renovate.yaml"
 
 required_filters=(
     ".github/.shared-config.yaml"
@@ -54,6 +55,12 @@ if ! jq -e '
   | any(contains("pnpm-lock.yaml") and contains("pnpm install --lockfile-only"))
 ' "$config" >/dev/null; then
     echo "shared-ref post-upgrade task must refresh pnpm-lock.yaml after package cleanup" >&2
+    exit 1
+fi
+
+allowed_count=$(grep -c 'RENOVATE_ALLOWED_COMMANDS: .*consumers/scripts/sync-shared.*pnpm install --lockfile-only' "$renovate_workflow" || true)
+if [ "$allowed_count" -ne 2 ]; then
+    echo "renovate workflow must allow the shared-ref rollout command in both Renovate passes" >&2
     exit 1
 fi
 
