@@ -5,8 +5,7 @@ name: template-lint-pr-metadata
 # (CSV). Word-boundary, case-insensitive match.
 #
 # Pair with template-lint-commits.yaml — that handles commit messages
-# (and PR titles via commitlint) — this covers the surfaces commitlint
-# can't see (PR body, branch name).
+# and PR titles — this covers PR body and branch name.
 
 on:
   workflow_call:
