@@ -46,6 +46,17 @@ if ! jq -e '
     exit 1
 fi
 
+if ! jq -e '
+  .packageRules[]?
+  | select((.matchPackageNames // []) | index("jr200-labs/github-action-templates"))
+  | select((.groupSlug // "") == "shared-workflow-ref")
+  | (.postUpgradeTasks.commands // [])
+  | any(contains("pnpm-lock.yaml") and contains("pnpm install --lockfile-only"))
+' "$config" >/dev/null; then
+    echo "shared-ref post-upgrade task must refresh pnpm-lock.yaml after package cleanup" >&2
+    exit 1
+fi
+
 if [ ! -x "$report_linter" ]; then
     echo "missing executable Renovate report linter: $report_linter" >&2
     exit 1

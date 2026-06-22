@@ -96,7 +96,7 @@
       "groupSlug": "shared-workflow-ref",
       "postUpgradeTasks": {
         "commands": [
-          "ref=$(sed -nE \"s/^[[:space:]]*ref:[[:space:]]*['\\\"]?([^'\\\"[:space:]]+).*$/\\1/p\" .github/.shared-config.yaml | head -n1) && curl -sfL \"https://raw.githubusercontent.com/jr200-labs/github-action-templates/${ref}/consumers/scripts/sync-shared\" -o scripts/sync-shared && chmod +x scripts/sync-shared && ./scripts/sync-shared"
+          "ref=$(sed -nE \"s/^[[:space:]]*ref:[[:space:]]*['\\\"]?([^'\\\"[:space:]]+).*$/\\1/p\" .github/.shared-config.yaml | head -n1) && curl -sfL \"https://raw.githubusercontent.com/jr200-labs/github-action-templates/${ref}/consumers/scripts/sync-shared\" -o scripts/sync-shared && chmod +x scripts/sync-shared && ./scripts/sync-shared && if [ -f package.json ] && [ -f pnpm-lock.yaml ]; then pnpm install --lockfile-only; fi"
         ],
         "fileFilters": [
           ".github/.shared-config.yaml",
