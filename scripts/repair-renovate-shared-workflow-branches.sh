@@ -21,6 +21,41 @@ git fetch --no-tags origin "+refs/heads/${branch_glob}:refs/remotes/origin/${bra
 base_sha="$(git rev-parse "$base_ref")"
 repaired=0
 checked=0
+repair_root_url="${SYNC_REPAIR_ROOT_URL:-https://raw.githubusercontent.com/jr200-labs/github-action-templates}"
+
+restore_base() {
+  git reset --hard HEAD >/dev/null 2>&1 || true
+  git clean -fd >/dev/null 2>&1 || true
+  git checkout --detach "$base_sha" >/dev/null 2>&1 || true
+}
+
+shared_config_ref() {
+  [ -f .github/.shared-config.yaml ] || return 0
+  sed -nE "s/^[[:space:]]*ref:[[:space:]]*['\"]?([^'\"[:space:]]+).*$/\1/p" .github/.shared-config.yaml | head -n1
+}
+
+refresh_sync_shared() {
+  local ref
+  ref="$(shared_config_ref)"
+  [ -n "$ref" ] || return 0
+
+  mkdir -p scripts
+  if curl -sfL --max-time 10 "${repair_root_url}/${ref}/consumers/scripts/sync-shared" -o scripts/sync-shared.tmp; then
+    mv scripts/sync-shared.tmp scripts/sync-shared
+    chmod +x scripts/sync-shared
+    echo "repair-renovate-shared-workflow: refreshed scripts/sync-shared from ${ref}" >&2
+  else
+    rm -f scripts/sync-shared.tmp
+    echo "repair-renovate-shared-workflow: failed to refresh scripts/sync-shared from ${ref}; using branch copy" >&2
+  fi
+}
+
+stage_path_if_present() {
+  local path="$1"
+  if [ -e "$path" ] || git ls-files --error-unmatch "$path" >/dev/null 2>&1; then
+    git add -A -- "$path"
+  fi
+}
 
 while IFS= read -r remote_ref; do
   branch="${remote_ref#refs/remotes/origin/}"
@@ -43,36 +78,51 @@ while IFS= read -r remote_ref; do
 
   if [ ! -x scripts/sync-shared ]; then
     echo "repair-renovate-shared-workflow: ${branch} has no executable scripts/sync-shared; skipping" >&2
-    git checkout --detach "$base_sha" >/dev/null 2>&1 || true
+    restore_base
     continue
   fi
 
   before_tree="$(git rev-parse HEAD^{tree})"
+  refresh_sync_shared
   ./scripts/sync-shared
-  repair_paths=()
-  [ -e .github/.shared-config.yaml ] && repair_paths+=(.github/.shared-config.yaml)
-  [ -d .github/workflows ] && repair_paths+=(.github/workflows)
 
-  if [ "${#repair_paths[@]}" -eq 0 ] || git diff --quiet -- "${repair_paths[@]}"; then
-    echo "repair-renovate-shared-workflow: ${branch} did not need shared workflow changes" >&2
-    git checkout --detach "$base_sha" >/dev/null 2>&1 || true
+  if [ -f package.json ] && [ -f pnpm-lock.yaml ] && ! git diff --quiet -- package.json; then
+    pnpm install --lockfile-only
+  fi
+
+  stage_path_if_present .github/.shared-config.yaml
+  stage_path_if_present .github/workflows
+  stage_path_if_present .githooks
+  stage_path_if_present cog.toml
+  stage_path_if_present package.json
+  stage_path_if_present pnpm-lock.yaml
+  stage_path_if_present scripts/sync-shared
+  stage_path_if_present scripts/sync-shared-drift-check
+  stage_path_if_present .husky/commit-msg
+  stage_path_if_present .shared/commitlint.config.mjs
+  stage_path_if_present commitlint.config.js
+  stage_path_if_present commitlint.config.cjs
+  stage_path_if_present commitlint.config.mjs
+
+  if git diff --cached --quiet; then
+    echo "repair-renovate-shared-workflow: ${branch} did not need shared rollout changes" >&2
+    restore_base
     continue
   fi
 
-  git add "${repair_paths[@]}"
   git commit --amend --no-edit --allow-empty
 
   after_tree="$(git rev-parse HEAD^{tree})"
   if [[ "$before_tree" == "$after_tree" ]]; then
     echo "repair-renovate-shared-workflow: ${branch} tree unchanged after amend" >&2
-    git checkout --detach "$base_sha" >/dev/null 2>&1 || true
+    restore_base
     continue
   fi
 
   git push --force-with-lease origin "HEAD:${branch}"
   repaired=$((repaired + 1))
-  git checkout --detach "$base_sha" >/dev/null 2>&1 || true
+  restore_base
 done < <(git for-each-ref --format='%(refname)' 'refs/remotes/origin/renovate')
 
-git checkout --detach "$base_sha" >/dev/null 2>&1 || true
+restore_base
 echo "repair-renovate-shared-workflow: checked=${checked} repaired=${repaired}" >&2

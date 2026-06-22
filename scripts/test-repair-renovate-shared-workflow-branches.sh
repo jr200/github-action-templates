@@ -82,6 +82,82 @@ git push origin renovate/generated-workflow-only >/dev/null 2>&1
 
 git checkout master >/dev/null
 
+shared_root="$tmp/shared-root"
+mkdir -p "$shared_root/shared-vnext/consumers/scripts"
+cat > "$shared_root/shared-vnext/consumers/scripts/sync-shared" <<'SYNC'
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p .github/workflows .githooks scripts
+cat > .github/workflows/drift-check.yaml <<'WORKFLOW'
+# GENERATED/SHARED WORKFLOW: copied into consuming repos by sync-shared.
+steps:
+  - uses: actions/checkout@v6
+WORKFLOW
+cat > .githooks/commit-msg <<'HOOK'
+#!/usr/bin/env bash
+cog verify --file "$1"
+HOOK
+chmod +x .githooks/commit-msg
+rm -f commitlint.config.mjs .shared/commitlint.config.mjs .husky/commit-msg
+jq 'del(.scripts.prepare | select(. == "husky"))
+  | del(.scripts | select(. == {}))
+  | del(.devDependencies["@commitlint/cli"], .devDependencies["@commitlint/config-conventional"], .devDependencies.husky)
+  | del(.devDependencies | select(. == {}))' package.json > package.json.tmp
+mv package.json.tmp package.json
+SYNC
+chmod +x "$shared_root/shared-vnext/consumers/scripts/sync-shared"
+
+fake_bin="$tmp/fake-bin"
+mkdir -p "$fake_bin"
+cat > "$fake_bin/pnpm" <<'PNPM'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "$1" != "install" ] || [ "$2" != "--lockfile-only" ]; then
+  echo "unexpected pnpm args: $*" >&2
+  exit 1
+fi
+printf 'lockfile refreshed\n' >> pnpm-lock.yaml
+PNPM
+chmod +x "$fake_bin/pnpm"
+
+git checkout -b renovate/shared-workflow-ref >/dev/null
+cat > .github/.shared-config.yaml <<'SHARED'
+ref: shared-vnext
+workflows:
+  - hygiene
+SHARED
+mkdir -p .husky .shared
+cat > package.json <<'JSON'
+{
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "21.0.2",
+    "@commitlint/config-conventional": "21.0.2",
+    "husky": "9.1.7",
+    "vitest": "3.2.4"
+  }
+}
+JSON
+cat > pnpm-lock.yaml <<'LOCK'
+lockfileVersion: '9.0'
+LOCK
+cat > commitlint.config.mjs <<'JS'
+export { default } from './.shared/commitlint.config.mjs';
+JS
+cat > .shared/commitlint.config.mjs <<'JS'
+export default {};
+JS
+cat > .husky/commit-msg <<'SH'
+npx --no -- commitlint --edit "$1"
+SH
+git add .github/.shared-config.yaml .husky/commit-msg .shared/commitlint.config.mjs commitlint.config.mjs package.json pnpm-lock.yaml
+git commit -m "fix(deps): update shared workflow ref" >/dev/null
+git push origin renovate/shared-workflow-ref >/dev/null 2>&1
+
+git checkout master >/dev/null
+
 orphan_work="$tmp/orphan"
 git clone "$bare" "$orphan_work" >/dev/null 2>&1
 (
@@ -99,7 +175,7 @@ SHARED
   git push origin renovate/no-merge-base >/dev/null 2>&1
 )
 
-"$root/scripts/repair-renovate-shared-workflow-branches.sh" origin/master 'renovate/*'
+PATH="$fake_bin:$PATH" SYNC_REPAIR_ROOT_URL="file://$shared_root" "$root/scripts/repair-renovate-shared-workflow-branches.sh" origin/master 'renovate/*'
 
 git fetch origin renovate/demo >/dev/null 2>&1
 updated_workflow="$(git show origin/renovate/demo:.github/workflows/drift-check.yaml)"
@@ -109,6 +185,32 @@ if grep -q 'actions/checkout@v7' <<<"$updated_workflow"; then
 fi
 if ! grep -q 'actions/checkout@v6' <<<"$updated_workflow"; then
   echo "expected renovate/demo workflow to contain canonical checkout@v6" >&2
+  exit 1
+fi
+
+git fetch origin renovate/shared-workflow-ref >/dev/null 2>&1
+shared_files="$(git diff --name-only origin/master...origin/renovate/shared-workflow-ref)"
+for expected in .github/.shared-config.yaml .githooks/commit-msg package.json pnpm-lock.yaml scripts/sync-shared; do
+  if ! grep -qx "$expected" <<<"$shared_files"; then
+    echo "expected shared workflow ref repair to include $expected" >&2
+    echo "$shared_files" >&2
+    exit 1
+  fi
+done
+for removed in commitlint.config.mjs .shared/commitlint.config.mjs .husky/commit-msg; do
+  if git cat-file -e "origin/renovate/shared-workflow-ref:${removed}" 2>/dev/null; then
+    echo "expected shared workflow ref repair to remove $removed" >&2
+    exit 1
+  fi
+done
+shared_package="$(git show origin/renovate/shared-workflow-ref:package.json)"
+if grep -Eq 'commitlint|husky|"prepare"' <<<"$shared_package"; then
+  echo "expected shared workflow ref repair to remove old commitlint packages" >&2
+  echo "$shared_package" >&2
+  exit 1
+fi
+if ! git show origin/renovate/shared-workflow-ref:pnpm-lock.yaml | grep -q 'lockfile refreshed'; then
+  echo "expected shared workflow ref repair to refresh pnpm lockfile" >&2
   exit 1
 fi
 
