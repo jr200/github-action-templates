@@ -71,13 +71,8 @@ if [[ "$shared_ref_uv_lock_count" != "0" ]]; then
   exit 1
 fi
 
-if ! awk '
-  /uses: astral-sh\/setup-uv@/ { in_setup = 1; next }
-  in_setup && /^[^[:space:]-]/ { in_setup = 0 }
-  in_setup && /^[[:space:]]+version:[[:space:]]*[^[:space:]]+/ { found = 1 }
-  END { exit found ? 0 : 1 }
-' "$workflow"; then
-  echo "FAIL: Renovate setup-uv step must pin version so self-hosted runners do not need latest-version discovery" >&2
+if grep -q 'uses: astral-sh/setup-uv@' "$workflow"; then
+  echo "FAIL: Renovate workflow must not run setup-uv speculatively; uv is only needed for the post-Renovate repair path" >&2
   exit 1
 fi
 

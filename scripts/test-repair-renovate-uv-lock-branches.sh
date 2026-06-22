@@ -80,4 +80,28 @@ if [[ "$updated_lock" != "locked = true" ]]; then
   exit 1
 fi
 
+no_repair_bare="$tmp/no-repair-origin.git"
+no_repair_work="$tmp/no-repair-work"
+git init --bare "$no_repair_bare" >/dev/null
+git clone "$no_repair_bare" "$no_repair_work" >/dev/null 2>&1
+(
+  cd "$no_repair_work"
+  git config user.name tester
+  git config user.email tester@example.com
+  cat > pyproject.toml <<'PYPROJECT'
+[project]
+name = "demo"
+version = "0.1.0"
+dependencies = ["demo-dep>=1.0.0"]
+PYPROJECT
+  cat > uv.lock <<'LOCK'
+locked = false
+LOCK
+  git add pyproject.toml uv.lock
+  git commit -m "initial" >/dev/null
+  git branch -M master
+  git push origin master >/dev/null 2>&1
+  PATH="/usr/bin:/bin" "$root/scripts/repair-renovate-uv-lock-branches.sh" origin/master 'renovate/*'
+)
+
 echo "test-repair-renovate-uv-lock-branches: ok"

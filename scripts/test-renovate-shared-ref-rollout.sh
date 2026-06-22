@@ -55,6 +55,25 @@ cat > "$allowed_warning" <<'JSON'
 JSON
 "$report_linter" "$allowed_warning"
 
+allowed_pep440="$TMPDIR/allowed-pep440.json"
+cat > "$allowed_pep440" <<'JSON'
+{
+  "repositories": [
+    {
+      "repository": "example/repo",
+      "problems": [
+        {
+          "warnings": [
+            "pep440: failed to calculate newValue"
+          ]
+        }
+      ]
+    }
+  ]
+}
+JSON
+"$report_linter" "$allowed_pep440"
+
 real_error="$TMPDIR/real-error.json"
 cat > "$real_error" <<'JSON'
 {
