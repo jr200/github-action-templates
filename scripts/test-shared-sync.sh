@@ -7,13 +7,36 @@ trap 'rm -rf "$TMPDIR"' EXIT
 
 make_consumer_repo() {
     local repo_dir="$1"
-    mkdir -p "$repo_dir/.github" "$repo_dir/scripts"
+    mkdir -p "$repo_dir/.github" "$repo_dir/scripts" "$repo_dir/.husky" "$repo_dir/.shared"
     cp "$ROOT/consumers/scripts/sync-shared" "$repo_dir/scripts/sync-shared"
     cat > "$repo_dir/.github/.shared-config.yaml" <<'YAML'
 ref: shared-v0.1.0
 workflows:
   - hygiene
 YAML
+    cat > "$repo_dir/package.json" <<'JSON'
+{
+  "scripts": {
+    "prepare": "husky",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "19.8.1",
+    "@commitlint/config-conventional": "19.8.1",
+    "husky": "9.1.7",
+    "vitest": "3.2.4"
+  }
+}
+JSON
+    cat > "$repo_dir/commitlint.config.mjs" <<'JS'
+export { default } from './.shared/commitlint.config.mjs';
+JS
+    cat > "$repo_dir/.shared/commitlint.config.mjs" <<'JS'
+export default {};
+JS
+    cat > "$repo_dir/.husky/commit-msg" <<'SH'
+npx --no -- commitlint --edit "$1"
+SH
 }
 
 consumer_repo="$TMPDIR/consumer"
@@ -27,7 +50,15 @@ make_consumer_repo "$consumer_repo"
     test -x .githooks/commit-msg
     test -x .githooks/lint-message-text.sh
     test -f cog.toml
+    test ! -f .shared/commitlint.config.mjs
+    test ! -f commitlint.config.mjs
+    test ! -f .husky/commit-msg
     test "$(git config --get core.hooksPath)" = ".githooks"
+    ! grep -q '"prepare": "husky"' package.json
+    ! grep -q '"@commitlint/cli"' package.json
+    ! grep -q '"@commitlint/config-conventional"' package.json
+    ! grep -q '"husky"' package.json
+    grep -q '"vitest": "3.2.4"' package.json
     STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
 )
 
@@ -41,8 +72,29 @@ workflows:
 YAML
 touch "$lint_repo/package.json"
 cat > "$lint_repo/package.json" <<'JSON'
-{}
+{
+  "scripts": {
+    "prepare": "husky",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "19.8.1",
+    "@commitlint/config-conventional": "19.8.1",
+    "husky": "9.1.7",
+    "vitest": "3.2.4"
+  }
+}
 JSON
+mkdir -p "$lint_repo/.husky" "$lint_repo/.shared"
+cat > "$lint_repo/commitlint.config.mjs" <<'JS'
+export { default } from './.shared/commitlint.config.mjs';
+JS
+cat > "$lint_repo/.shared/commitlint.config.mjs" <<'JS'
+export default {};
+JS
+cat > "$lint_repo/.husky/commit-msg" <<'SH'
+npx --no -- commitlint --edit "$1"
+SH
 cat > "$lint_repo/pnpm-workspace.yaml" <<'YAML'
 packages:
   - "."
@@ -52,6 +104,9 @@ YAML
     git init -q
     SYNC_BASE_URL="file://$ROOT/shared" ./sync.sh node
     test -f .shared/eslint.config.mjs
+    test ! -f .shared/commitlint.config.mjs
+    test ! -f commitlint.config.mjs
+    test ! -f .husky/commit-msg
     test -x .githooks/commit-msg
     test -x .githooks/lint-message-text.sh
     test -f cog.toml
@@ -59,6 +114,10 @@ YAML
     test -f .syncpackrc.yaml
     test "$(git config --get core.hooksPath)" = ".githooks"
     ! grep -q '"prepare": "husky"' package.json
+    ! grep -q '"@commitlint/cli"' package.json
+    ! grep -q '"@commitlint/config-conventional"' package.json
+    ! grep -q '"husky"' package.json
+    grep -q '"vitest": "3.2.4"' package.json
     grep -qx "packages:" pnpm-workspace.yaml
     grep -qx "minimumReleaseAge: 0" pnpm-workspace.yaml
 )

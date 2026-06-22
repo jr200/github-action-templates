@@ -192,8 +192,8 @@ working with: `A JSON web token could not be decoded`.
 gh secret set INTEGRATION_APP_PRIVATE_KEY --repo <repo> < key.pem
 ```
 
-The `app-id` input is deprecated in v3 (replaced by `client-id`) but
-still works. Will need updating eventually.
+For v3 workflows, prefer `client-id`. Older `app-id` usage can still
+appear in historical workflow runs and should be moved opportunistically.
 
 ---
 

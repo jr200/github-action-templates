@@ -13,7 +13,11 @@ required_filters=(
     ".github/workflows/*.yaml"
     ".githooks/commit-msg"
     ".githooks/lint-message-text.sh"
+    ".husky/commit-msg"
     "cog.toml"
+    "commitlint.config.*"
+    "package.json"
+    "pnpm-lock.yaml"
     "scripts/sync-shared"
     "scripts/sync-shared-drift-check"
 )

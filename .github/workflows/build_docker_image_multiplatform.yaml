@@ -52,7 +52,7 @@ on:
         required: true
       git_token:
         required: false
-        description: "Token for cloning private git dependencies during Docker build (deprecated: use client_id + app_private_key instead)"
+        description: "Legacy token for cloning private git dependencies during Docker build. Prefer client_id + app_private_key."
       client_id:
         required: false
         description: "GitHub App Client ID for generating a token to clone private git deps"
