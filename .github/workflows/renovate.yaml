@@ -244,6 +244,12 @@ jobs:
         with:
           node-version: '24.17.0'
 
+      - name: Install Cocogitto for shared branch repair
+        if: success() && inputs.dry-run == ''
+        uses: cocogitto/cocogitto-action@v4.2.0
+        with:
+          install-only: true
+
       - name: Repair generated shared workflow drift on Renovate branches
         if: success() && inputs.dry-run == ''
         shell: bash
