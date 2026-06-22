@@ -20,9 +20,13 @@ consumer_repo="$TMPDIR/consumer"
 make_consumer_repo "$consumer_repo"
 (
     cd "$consumer_repo"
+    git init -q
     SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared
     test -f .github/workflows/commitlint.yaml
     test -f .github/workflows/sync-shared-drift.yaml
+    test -x .githooks/commit-msg
+    test -f cog.toml
+    test "$(git config --get core.hooksPath)" = ".githooks"
     STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
 )
 
