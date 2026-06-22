@@ -232,6 +232,12 @@ jobs:
         env:
           RENOVATE_REPAIR_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
+      - name: Set up pnpm for shared branch repair
+        if: success() && inputs.dry-run == '' && hashFiles('pnpm-lock.yaml') != ''
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
       - name: Repair generated shared workflow drift on Renovate branches
         if: success() && inputs.dry-run == ''
         shell: bash
