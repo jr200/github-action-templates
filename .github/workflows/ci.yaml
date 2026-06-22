@@ -118,6 +118,15 @@ jobs:
       - name: Lint Renovate uv.lock post-upgrade task
         run: ./scripts/lint-renovate-uv-lock-task.sh
 
+  validate-renovate-shared-ref-rollout:
+    # Shared ref updates now sync hooks/config in addition to workflows.
+    # Renovate must allow all of those files in the post-upgrade branch.
+    runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint shared ref rollout
+        run: ./scripts/test-renovate-shared-ref-rollout.sh
+
   validate-renovate-workflow-token:
     # Renovate can update generated workflow files after syncing shared refs.
     # GitHub rejects those branch pushes unless the App token has workflows:write.

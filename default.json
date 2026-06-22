@@ -98,7 +98,12 @@
         "commands": ["./scripts/sync-shared"],
         "fileFilters": [
           ".github/.shared-config.yaml",
-          ".github/workflows/*.yaml"
+          ".github/workflows/*.yaml",
+          ".githooks/commit-msg",
+          ".githooks/lint-message-text.sh",
+          "cog.toml",
+          "scripts/sync-shared",
+          "scripts/sync-shared-drift-check"
         ],
         "executionMode": "branch"
       }
