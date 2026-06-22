@@ -25,7 +25,7 @@ repair_root_url="${SYNC_REPAIR_ROOT_URL:-https://raw.githubusercontent.com/jr200
 
 restore_base() {
   git reset --hard HEAD >/dev/null 2>&1 || true
-  git clean -fd >/dev/null 2>&1 || true
+  git clean -fd -e .renovate-out/ -e _gha_templates/ >/dev/null 2>&1 || true
   git checkout --detach "$base_sha" >/dev/null 2>&1 || true
 }
 

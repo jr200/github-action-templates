@@ -177,6 +177,16 @@ SHARED
 
 PATH="$fake_bin:$PATH" SYNC_REPAIR_ROOT_URL="file://$shared_root" "$root/scripts/repair-renovate-shared-workflow-branches.sh" origin/master 'renovate/*'
 
+mkdir -p .renovate-out
+cat > .renovate-out/pass1.report.json <<'JSON'
+{"repositories":[]}
+JSON
+PATH="$fake_bin:$PATH" SYNC_REPAIR_ROOT_URL="file://$shared_root" "$root/scripts/repair-renovate-shared-workflow-branches.sh" origin/master 'renovate/normalized-empty-amend'
+if [ ! -f .renovate-out/pass1.report.json ]; then
+  echo "expected repair cleanup to preserve Renovate report files" >&2
+  exit 1
+fi
+
 git fetch origin renovate/demo >/dev/null 2>&1
 updated_workflow="$(git show origin/renovate/demo:.github/workflows/drift-check.yaml)"
 if grep -q 'actions/checkout@v7' <<<"$updated_workflow"; then
