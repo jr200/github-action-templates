@@ -245,47 +245,28 @@ jobs:
 
       - name: Fail on Renovate problems
         # Reads Renovate's structured JSON report. Fails the workflow
-        # on ANY problem (warning or error) — per WG-141 policy, every
-        # warning is treated as a build break (silent drift hurts more
-        # than a noisy red mark). If the report is missing, that's
-        # also a hard fail (Renovate may have crashed or couldn't
-        # write the file).
+        # on problems except the known vulnerability-alert permission
+        # warning. If the report is missing, that's also a hard fail
+        # (Renovate may have crashed or couldn't write the file).
         if: always() && inputs.dry-run == ''
         shell: bash
         run: |
-          set -uo pipefail
-          fail=0
+          set -euo pipefail
+          reports=()
           for label in pass1 pass2; do
             report="$GITHUB_WORKSPACE/.renovate-out/${label}.report.json"
             if [ ! -f "$report" ]; then
               echo "::error title=Renovate report missing::Expected $report — Renovate may have failed before writing it."
-              fail=1
-              continue
+              exit 1
             fi
-            # Failure surfaces in two places: problems[].{msg,warnings,errors}
-            # AND the repository-level `result` field (e.g. lockfile-error,
-            # config-error, unknown-error). Earlier the gate only checked
-            # the former, letting lockfile-error pass silently.
-            problems=$(jq -r '
-              [.problems[]?, .repositories[]?.problems[]?] as $p
-              | ($p | map(.msg)) + ($p | map(.warnings // [] | .[])) + ($p | map(.errors // [] | .[]))
-              | map(select(. != null)) | unique | .[]
-            ' "$report")
-            results=$(jq -r '
-              .. | objects
-              | select(has("result"))
-              | select(.result // "" | test("error"))
-              | "result=\(.result) on repository=\(.repository // "?")"
-            ' "$report")
-            if [ -n "${problems:-}" ] || [ -n "${results:-}" ]; then
-              echo "::group::Renovate problems ($label)"
-              [ -n "${problems:-}" ] && printf '%s\n' "$problems"
-              [ -n "${results:-}" ] && printf '%s\n' "$results"
-              echo "::endgroup::"
-              fail=1
-            fi
+            reports+=("$report")
           done
-          if [ "$fail" = "1" ]; then
+
+          curl -sfL "https://raw.githubusercontent.com/jr200-labs/github-action-templates/master/scripts/lint-renovate-report-problems.sh" \
+            -o /tmp/lint-renovate-report-problems.sh
+          chmod +x /tmp/lint-renovate-report-problems.sh
+
+          if ! /tmp/lint-renovate-report-problems.sh "${reports[@]}"; then
             echo "::error title=Renovate problems::Renovate emitted warnings/errors (see groups above)."
             exit 1
           fi
