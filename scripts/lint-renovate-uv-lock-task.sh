@@ -51,4 +51,18 @@ if [[ "$file_scoped_count" != "0" ]]; then
   exit 1
 fi
 
+shared_ref_uv_lock_count=$(jq '
+  [
+    .packageRules[]?
+    | select((.postUpgradeTasks.commands // []) == ["uv lock"])
+    | select(((.matchPackageNames // []) | index("!jr200-labs/github-action-templates")) | not)
+  ]
+  | length
+' "$file")
+
+if [[ "$shared_ref_uv_lock_count" != "0" ]]; then
+  echo "FAIL: uv.lock postUpgradeTasks rule must exclude the shared workflow ref package with negative matchPackageNames; shared-ref repos are not necessarily Python projects" >&2
+  exit 1
+fi
+
 echo "lint-renovate-uv-lock-task: ok" >&2
