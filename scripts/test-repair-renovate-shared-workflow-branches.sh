@@ -82,6 +82,23 @@ git push origin renovate/generated-workflow-only >/dev/null 2>&1
 
 git checkout master >/dev/null
 
+orphan_work="$tmp/orphan"
+git clone "$bare" "$orphan_work" >/dev/null 2>&1
+(
+  cd "$orphan_work"
+  git config user.name tester
+  git config user.email tester@example.com
+  git checkout --orphan renovate/no-merge-base >/dev/null
+  git rm -rf . >/dev/null 2>&1 || true
+  mkdir -p .github
+  cat > .github/.shared-config.yaml <<'SHARED'
+version: 1
+SHARED
+  git add .github/.shared-config.yaml
+  git commit -m "fix(deps): update shared workflow ref" >/dev/null
+  git push origin renovate/no-merge-base >/dev/null 2>&1
+)
+
 "$root/scripts/repair-renovate-shared-workflow-branches.sh" origin/master 'renovate/*'
 
 git fetch origin renovate/demo >/dev/null 2>&1

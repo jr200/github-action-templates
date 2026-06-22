@@ -26,6 +26,11 @@ while IFS= read -r remote_ref; do
   branch="${remote_ref#refs/remotes/origin/}"
   [[ "$branch" == renovate/* ]] || continue
 
+  if ! git merge-base "$base_sha" "$remote_ref" >/dev/null; then
+    echo "repair-renovate-shared-workflow: ${branch} has no merge base with ${base_ref}; skipping" >&2
+    continue
+  fi
+
   changed_files="$(git diff --name-only "${base_sha}...${remote_ref}")"
   if ! grep -Eq '^\.github/(workflows/|\.shared-config\.ya?ml$)' <<<"$changed_files"; then
     continue
