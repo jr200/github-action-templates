@@ -9,9 +9,15 @@
 set -euo pipefail
 
 file="${1:-default.json}"
+workflow="${2:-.github/workflows/renovate.yaml}"
 
 if [[ ! -f "$file" ]]; then
   echo "ERROR: config file not found: $file" >&2
+  exit 2
+fi
+
+if [[ ! -f "$workflow" ]]; then
+  echo "ERROR: workflow file not found: $workflow" >&2
   exit 2
 fi
 
@@ -62,6 +68,16 @@ shared_ref_uv_lock_count=$(jq '
 
 if [[ "$shared_ref_uv_lock_count" != "0" ]]; then
   echo "FAIL: uv.lock postUpgradeTasks rule must exclude the shared workflow ref package with negative matchPackageNames; shared-ref repos are not necessarily Python projects" >&2
+  exit 1
+fi
+
+if ! awk '
+  /uses: astral-sh\/setup-uv@/ { in_setup = 1; next }
+  in_setup && /^[^[:space:]-]/ { in_setup = 0 }
+  in_setup && /^[[:space:]]+version:[[:space:]]*[^[:space:]]+/ { found = 1 }
+  END { exit found ? 0 : 1 }
+' "$workflow"; then
+  echo "FAIL: Renovate setup-uv step must pin version so self-hosted runners do not need latest-version discovery" >&2
   exit 1
 fi
 
