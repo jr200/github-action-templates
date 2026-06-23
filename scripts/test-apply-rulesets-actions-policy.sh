@@ -60,7 +60,10 @@ if [ "$command" = "pr" ]; then
         shift
       done
       case "$repo" in
-        whengas/whengas-faker|jr200-labs/public-repo)
+        whengas/whengas-faker)
+          printf '%s\n' 42 43 44
+          ;;
+        jr200-labs/public-repo)
           echo "42"
           ;;
         *)
@@ -82,16 +85,61 @@ if [ "$command" = "pr" ]; then
         esac
         shift
       done
-      if [ "$number" != "42" ]; then
-        echo "unexpected PR number: $number" >&2
-        exit 1
-      fi
       case "$repo" in
-        whengas/whengas-faker|jr200-labs/public-repo)
+        whengas/whengas-faker)
+          case "$number" in
+            42)
+              jq -n --arg repo "$repo" '{
+                title: "fix(deps): update shared workflow ref",
+                headRefName: "renovate/shared-workflow-ref",
+                author: {login: "app/whengas-ci-integration", is_bot: true},
+                autoMergeRequest: null,
+                url: ("https://github.com/" + $repo + "/pull/42"),
+                files: [
+                  {path: ".github/.shared-config.yaml"},
+                  {path: ".github/workflows/sync-shared-drift.yaml"},
+                  {path: "scripts/sync-shared"}
+                ]
+              }'
+              ;;
+            43)
+              jq -n --arg repo "$repo" '{
+                title: "fix(deps): update shared workflow ref",
+                headRefName: "renovate/shared-workflow-ref",
+                author: {login: "renovate[bot]", is_bot: true},
+                autoMergeRequest: null,
+                url: ("https://github.com/" + $repo + "/pull/43"),
+                files: [
+                  {path: ".github/.shared-config.yaml"},
+                  {path: ".github/workflows/sync-shared-drift.yaml"},
+                  {path: "scripts/sync-shared"}
+                ]
+              }'
+              ;;
+            44)
+              jq -n --arg repo "$repo" '{
+                title: "fix(deps): update shared workflow ref",
+                headRefName: "renovate/shared-workflow-ref",
+                author: {login: "app/whengas-ci-integration", is_bot: true},
+                autoMergeRequest: null,
+                url: ("https://github.com/" + $repo + "/pull/44"),
+                files: [
+                  {path: ".github/.shared-config.yaml"},
+                  {path: "src/unexpected.ts"}
+                ]
+              }'
+              ;;
+            *)
+              echo "unexpected PR number: $number" >&2
+              exit 1
+              ;;
+          esac
+          ;;
+        jr200-labs/public-repo)
           jq -n --arg repo "$repo" '{
             title: "fix(deps): update shared workflow ref",
             headRefName: "renovate/shared-workflow-ref",
-            author: {is_bot: true},
+            author: {login: "app/jr200-labs-cicd-bot", is_bot: true},
             autoMergeRequest: null,
             url: ("https://github.com/" + $repo + "/pull/42"),
             files: [
@@ -121,7 +169,7 @@ if [ "$command" = "pr" ]; then
         shift
       done
       if [ "$number" != "42" ]; then
-        echo "unexpected PR number: $number" >&2
+        echo "unexpected PR merge number: $number" >&2
         exit 1
       fi
       case "$repo" in

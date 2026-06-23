@@ -6,9 +6,10 @@ Source-of-truth for GitHub branch-protection rulesets across jr200-labs and cons
 
 ```
 rulesets/
-├── trunk-protect.json   # canonical ruleset body (verbatim API payload)
-├── targets.yaml         # which ruleset → which org → org-scope or per-repo-scope
-└── README.md            # this file
+├── trunk-protect.json                   # canonical ruleset body (verbatim API payload)
+├── shared-workflow-ref-automerge.json   # exact PR policy for shared-ref auto-merge queueing
+├── targets.yaml                         # which ruleset → which org → org-scope or per-repo-scope
+└── README.md                            # this file
 ```
 
 ## Run
@@ -35,7 +36,7 @@ Requires `gh`, `jq`, `yq` and a `gh auth login` with admin on every targeted org
 
 Adjacent repo settings are also reconciled on every targeted repo:
 
-- `allow_auto_merge=true` as the GitHub prerequisite for auto-merge. The reconciliation script only queues auto-merge for vetted `fix(deps): update shared workflow ref` Renovate PRs; workflow-triggered auto-merge remains blocked by `lint-no-auto-merge` except for the annotated sync-shared repair step.
+- `allow_auto_merge=true` as the GitHub prerequisite for auto-merge. The reconciliation script only queues auto-merge for shared workflow ref Renovate PRs matching `shared-workflow-ref-automerge.json`: exact title, branch, allowed GitHub App author login, and allowed generated-file globs. Workflow-triggered auto-merge remains blocked by `lint-no-auto-merge` except for the annotated sync-shared repair step.
 - `delete_branch_on_merge=true` so merged PR branches are cleaned up automatically.
 - `allow_update_branch=true` so PRs can use GitHub's `Update branch` button when the base branch moves ahead.
 

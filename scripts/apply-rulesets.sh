@@ -175,10 +175,13 @@ fi
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TARGETS="$REPO_ROOT/rulesets/targets.yaml"
 RULESETS_DIR="$REPO_ROOT/rulesets"
+SHARED_REF_AUTOMERGE_CONFIG="$RULESETS_DIR/shared-workflow-ref-automerge.json"
 
 for cmd in gh jq yq; do
     command -v "$cmd" >/dev/null 2>&1 || { echo "missing: $cmd" >&2; exit 1; }
 done
+
+[ -f "$SHARED_REF_AUTOMERGE_CONFIG" ] || { echo "missing config: $SHARED_REF_AUTOMERGE_CONFIG" >&2; exit 1; }
 
 run() {
     if [ "$DRY_RUN" = 1 ]; then
@@ -310,34 +313,35 @@ reconcile_actions_private_fork_workflow_policy() {
     rm -f "$tmp_body"
 }
 
+is_allowed_shared_ref_author() {
+    local login="$1"
+
+    jq -e --arg login "$login" '.allowedAuthorLogins | index($login) != null' "$SHARED_REF_AUTOMERGE_CONFIG" >/dev/null
+}
+
 is_allowed_shared_ref_path() {
-    case "$1" in
-        .github/.shared-config.yaml|\
-        .github/workflows/*.yaml|\
-        .github/workflows/*.yml|\
-        .githooks/commit-msg|\
-        .githooks/lint-message-text.sh|\
-        cog.toml|\
-        scripts/sync-shared|\
-        scripts/sync-shared-drift-check|\
-        package.json|\
-        pnpm-lock.yaml)
+    local path="$1" glob
+
+    while IFS= read -r glob; do
+        [ -z "$glob" ] && continue
+        if [[ "$path" == $glob ]]; then
             return 0
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+        fi
+    done < <(jq -r '.allowedPathGlobs[]' "$SHARED_REF_AUTOMERGE_CONFIG")
+
+    return 1
 }
 
 queue_shared_workflow_ref_automerge() {
-    local org="$1" repo="$2" fq pr_numbers pr_number pr_json title branch url author_is_bot auto_merge bad_paths path
+    local org="$1" repo="$2" fq pr_numbers pr_number pr_json title branch expected_title expected_branch url author_login author_is_bot auto_merge bad_paths path
     fq="${org}/${repo}"
+    expected_title=$(jq -r '.title' "$SHARED_REF_AUTOMERGE_CONFIG")
+    expected_branch=$(jq -r '.headRefName' "$SHARED_REF_AUTOMERGE_CONFIG")
 
     pr_numbers=$(gh pr list \
         --repo "$fq" \
         --state open \
-        --head renovate/shared-workflow-ref \
+        --head "$expected_branch" \
         --json number \
         --jq '.[].number')
 
@@ -351,15 +355,16 @@ queue_shared_workflow_ref_automerge() {
         title=$(jq -r '.title' <<<"$pr_json")
         branch=$(jq -r '.headRefName' <<<"$pr_json")
         url=$(jq -r '.url' <<<"$pr_json")
+        author_login=$(jq -r '.author.login' <<<"$pr_json")
         author_is_bot=$(jq -r '.author.is_bot' <<<"$pr_json")
         auto_merge=$(jq -r '.autoMergeRequest != null' <<<"$pr_json")
 
-        if [ "$title" != "fix(deps): update shared workflow ref" ] || [ "$branch" != "renovate/shared-workflow-ref" ]; then
+        if [ "$title" != "$expected_title" ] || [ "$branch" != "$expected_branch" ]; then
             echo "  repo/$fq PR #$pr_number: skip shared-ref auto-merge (unexpected title/branch)"
             continue
         fi
-        if [ "$author_is_bot" != "true" ]; then
-            echo "  repo/$fq PR #$pr_number: skip shared-ref auto-merge (author is not a bot)"
+        if [ "$author_is_bot" != "true" ] || ! is_allowed_shared_ref_author "$author_login"; then
+            echo "  repo/$fq PR #$pr_number: skip shared-ref auto-merge (author is not an allowed app: $author_login)"
             continue
         fi
         if [ "$auto_merge" = "true" ]; then
