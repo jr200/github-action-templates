@@ -9,8 +9,9 @@
 # the script PUTs the canonical body to it (updating in place); otherwise
 # POSTs a new one. Repo-level merge hygiene settings are also reconciled on
 # every targeted repo:
-#   - allow_auto_merge=true (GitHub prerequisite; only vetted shared-ref PRs
-#     are queued for auto-merge by this script)
+#   - allow_auto_merge=false by default; when shared-ref automerge is enabled
+#     in config, this becomes true as GitHub's prerequisite for queueing vetted
+#     shared-ref PRs
 #   - delete_branch_on_merge=true
 #   - allow_update_branch=true
 #   - require_approval_for_fork_pr_workflows=false
@@ -47,8 +48,8 @@ Options:
   --ruleset <name>     Limit reconciliation to one ruleset from targets.yaml.
   --repo <org/repo>    Limit repo-scope reconciliation to one or more repos.
                        Repeat flag to target multiple repos.
-  --skip-auto-merge    Skip PATCH allow_auto_merge=true enforcement and
-                       shared workflow ref PR auto-merge queueing.
+  --skip-auto-merge    Skip PATCH allow_auto_merge enforcement and shared
+                       workflow ref PR auto-merge queueing.
   -h, --help           Show this help.
 
 Examples:
@@ -182,6 +183,10 @@ for cmd in gh jq yq; do
 done
 
 [ -f "$SHARED_REF_AUTOMERGE_CONFIG" ] || { echo "missing config: $SHARED_REF_AUTOMERGE_CONFIG" >&2; exit 1; }
+
+shared_ref_automerge_enabled() {
+    jq -e '.enabled == true' "$SHARED_REF_AUTOMERGE_CONFIG" >/dev/null
+}
 
 run() {
     if [ "$DRY_RUN" = 1 ]; then
@@ -335,6 +340,9 @@ is_allowed_shared_ref_path() {
 queue_shared_workflow_ref_automerge() {
     local org="$1" repo="$2" fq pr_numbers pr_number pr_json title branch expected_title expected_branch url author_login author_is_bot auto_merge bad_paths path
     fq="${org}/${repo}"
+    if ! shared_ref_automerge_enabled; then
+        return
+    fi
     expected_title=$(jq -r '.title' "$SHARED_REF_AUTOMERGE_CONFIG")
     expected_branch=$(jq -r '.headRefName' "$SHARED_REF_AUTOMERGE_CONFIG")
 
@@ -423,10 +431,17 @@ reconcile_repo_settings() {
             delete_branch=$(jq -r '.delete_branch_on_merge' <<<"$current")
             update_branch=$(jq -r '.allow_update_branch' <<<"$current")
 
-            if [ "$auto_merge" != "true" ] || [ "$delete_branch" != "true" ] || [ "$update_branch" != "true" ]; then
-                echo "  repo/$org/$repo: reconcile allow_auto_merge=true, delete_branch_on_merge=true, allow_update_branch=true (drift detected)"
+            local desired_auto_merge
+            if shared_ref_automerge_enabled; then
+                desired_auto_merge=true
+            else
+                desired_auto_merge=false
+            fi
+
+            if [ "$auto_merge" != "$desired_auto_merge" ] || [ "$delete_branch" != "true" ] || [ "$update_branch" != "true" ]; then
+                echo "  repo/$org/$repo: reconcile allow_auto_merge=${desired_auto_merge}, delete_branch_on_merge=true, allow_update_branch=true (drift detected)"
                 run gh api -X PATCH "/repos/$org/$repo" \
-                    -F allow_auto_merge=true \
+                    -F allow_auto_merge="$desired_auto_merge" \
                     -F delete_branch_on_merge=true \
                     -F allow_update_branch=true \
                     --silent

@@ -36,7 +36,7 @@ Requires `gh`, `jq`, `yq` and a `gh auth login` with admin on every targeted org
 
 Adjacent repo settings are also reconciled on every targeted repo:
 
-- `allow_auto_merge=true` as the GitHub prerequisite for auto-merge. The reconciliation script only queues auto-merge for shared workflow ref Renovate PRs matching `shared-workflow-ref-automerge.json`: exact title, branch, allowed GitHub App author login, and allowed generated-file globs. Workflow-triggered auto-merge remains blocked by `lint-no-auto-merge` except for the annotated sync-shared repair step.
+- `allow_auto_merge=false` by default. `shared-workflow-ref-automerge.json` keeps the exact title, branch, allowed GitHub App author login, and allowed generated-file globs needed if shared-ref auto-merge is explicitly enabled later.
 - `delete_branch_on_merge=true` so merged PR branches are cleaned up automatically.
 - `allow_update_branch=true` so PRs can use GitHub's `Update branch` button when the base branch moves ahead.
 
@@ -68,7 +68,7 @@ Useful flags for staged rollout:
 - `--repo ORG/REPO` (repeatable): target specific repos only.
 - `--org ORG`: narrow to one supported org (`jr200-labs`, `whengas`, or `janeway-labs`) and prompt `Y/n` per repo before applying repo-scoped changes. For org-scoped rulesets, the script also prompts once before applying the org-wide rule.
 - `--ruleset NAME`: apply one canonical ruleset only.
-- `--skip-auto-merge`: skip repo-level merge-setting patches (`allow_auto_merge=true`, `delete_branch_on_merge=true`, `allow_update_branch=true`) and shared workflow ref PR auto-merge queueing if you only want ruleset reconciliation.
+- `--skip-auto-merge`: skip repo-level merge-setting patches (`allow_auto_merge`, `delete_branch_on_merge`, `allow_update_branch`) and shared workflow ref PR auto-merge queueing if you only want ruleset reconciliation.
 
 ## Adding a new ruleset
 

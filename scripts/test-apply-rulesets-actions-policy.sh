@@ -156,31 +156,8 @@ if [ "$command" = "pr" ]; then
       esac
       ;;
     merge)
-      number="$1"
-      shift
-      repo=""
-      while [ "$#" -gt 0 ]; do
-        case "$1" in
-          --repo)
-            shift
-            repo="$1"
-            ;;
-        esac
-        shift
-      done
-      if [ "$number" != "42" ]; then
-        echo "unexpected PR merge number: $number" >&2
-        exit 1
-      fi
-      case "$repo" in
-        whengas/whengas-faker|jr200-labs/public-repo)
-          echo "$repo#$number" >> "$TEST_CAPTURE_DIR/shared-ref-automerge.txt"
-          ;;
-        *)
-          echo "unexpected gh pr merge repo: $repo" >&2
-          exit 1
-          ;;
-      esac
+      echo "shared-ref auto-merge is disabled; gh pr merge must not be called" >&2
+      exit 1
       ;;
     *)
       echo "unexpected gh pr subcommand: $subcommand" >&2
@@ -198,6 +175,7 @@ fi
 endpoint=""
 method="GET"
 input_file=""
+fields=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -X|--method)
@@ -210,6 +188,7 @@ while [ "$#" -gt 0 ]; do
       ;;
     -F|--field|--raw-field)
       shift
+      fields="${fields}${1}"$'\n'
       ;;
     --jq|-q|--paginate|--silent)
       if [ "$1" = "--jq" ] || [ "$1" = "-q" ]; then
@@ -259,15 +238,17 @@ case "$method:$endpoint" in
     cat "$TEST_RULESET_BODY"
     ;;
   "GET:/repos/whengas/whengas-faker")
-    printf '{"allow_auto_merge":false,"delete_branch_on_merge":true,"allow_update_branch":true}\n'
+    printf '{"allow_auto_merge":true,"delete_branch_on_merge":true,"allow_update_branch":true}\n'
     ;;
   "PATCH:/repos/whengas/whengas-faker")
+    printf '%s' "$fields" > "$TEST_CAPTURE_DIR/whengas-repo-settings.txt"
     true
     ;;
   "GET:/repos/jr200-labs/public-repo")
-    printf '{"allow_auto_merge":false,"delete_branch_on_merge":true,"allow_update_branch":true}\n'
+    printf '{"allow_auto_merge":true,"delete_branch_on_merge":true,"allow_update_branch":true}\n'
     ;;
   "PATCH:/repos/jr200-labs/public-repo")
+    printf '%s' "$fields" > "$TEST_CAPTURE_DIR/jr200-repo-settings.txt"
     true
     ;;
   "GET:/orgs/whengas/actions/permissions/fork-pr-workflows-private-repos")
@@ -311,6 +292,8 @@ TEST_CAPTURE_DIR="$capture" \
 org_payload="$capture/org-actions-policy.json"
 repo_payload="$capture/actions-policy.json"
 automerge_capture="$capture/shared-ref-automerge.txt"
+whengas_settings="$capture/whengas-repo-settings.txt"
+jr200_settings="$capture/jr200-repo-settings.txt"
 if [ ! -f "$org_payload" ]; then
   echo "expected org Actions private fork workflow approval payload to be written" >&2
   exit 1
@@ -329,11 +312,18 @@ for payload in "$org_payload" "$repo_payload"; do
   ' "$payload" >/dev/null
 done
 
-if [ ! -f "$automerge_capture" ]; then
-  echo "expected shared workflow ref auto-merge queueing to be captured" >&2
+if [ -f "$automerge_capture" ]; then
+  echo "did not expect shared workflow ref auto-merge queueing while disabled" >&2
   exit 1
 fi
-grep -qx "whengas/whengas-faker#42" "$automerge_capture"
-grep -qx "jr200-labs/public-repo#42" "$automerge_capture"
+for settings in "$whengas_settings" "$jr200_settings"; do
+  if [ ! -f "$settings" ]; then
+    echo "expected repo settings patch to be captured: $settings" >&2
+    exit 1
+  fi
+  grep -qx "allow_auto_merge=false" "$settings"
+  grep -qx "delete_branch_on_merge=true" "$settings"
+  grep -qx "allow_update_branch=true" "$settings"
+done
 
 echo "test-apply-rulesets-actions-policy: ok"

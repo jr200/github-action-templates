@@ -1,4 +1,5 @@
 {
+  "enabled": false,
   "title": "fix(deps): update shared workflow ref",
   "headRefName": "renovate/shared-workflow-ref",
   "allowedAuthorLogins": [
