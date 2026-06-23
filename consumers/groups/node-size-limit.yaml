@@ -1,0 +1,4 @@
+# Node source group with bundle size reporting enabled. Opt in for repos
+# that have package.json, a size script, and want size-limit PR comments.
+includes:
+  - ci-node-size-limit

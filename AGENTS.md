@@ -49,6 +49,7 @@ Current groups:
 | `hygiene` | lint-pr-metadata, commitlint (Cocogitto conventional-commit check), drift-check, renovate, lint-version-downgrades | every repo that wants any CI |
 | `python` | ci-python | repo has `pyproject.toml` |
 | `node` | ci-node | repo has `package.json` |
+| `node-size-limit` | ci-node-size-limit | repo has `package.json`, a `size` script, and wants size-limit PR comments |
 | `node-bench` | node-bench | repo has a Node/pnpm benchmark workflow and wants the shared manual benchmark caller |
 | `npm-package` | publish-npm-package | repo publishes a Node package to npmjs.com on release (needs `secrets.NPMJS_API_TOKEN`) |
 | `go` | ci-go | repo has `go.mod` |

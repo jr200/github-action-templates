@@ -77,6 +77,23 @@ make_consumer_repo "$consumer_repo"
     STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
 )
 
+size_limit_repo="$TMPDIR/size-limit-consumer"
+make_consumer_repo "$size_limit_repo"
+cat > "$size_limit_repo/.github/.shared-config.yaml" <<'YAML'
+ref: shared-v0.1.0
+workflows:
+  - node-size-limit
+YAML
+(
+    cd "$size_limit_repo"
+    git init -q
+    SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared
+    test -f .github/workflows/ci-node-size-limit.yaml
+    yq -e '.jobs.ci.with."run-size-limit" == true' .github/workflows/ci-node-size-limit.yaml >/dev/null
+    ! yq -e '.jobs.commitlint' .github/workflows/ci-node-size-limit.yaml >/dev/null 2>&1
+    STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
+)
+
 lint_repo="$TMPDIR/lint-consumer"
 mkdir -p "$lint_repo/.github"
 cp "$ROOT/shared/sync.sh" "$lint_repo/sync.sh"
