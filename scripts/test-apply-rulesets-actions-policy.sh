@@ -41,11 +41,111 @@ cat > "$bin/gh" <<'GH'
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$1" != "api" ]; then
-  echo "unexpected gh command: $*" >&2
+command="$1"
+shift
+
+if [ "$command" = "pr" ]; then
+  subcommand="$1"
+  shift
+  case "$subcommand" in
+    list)
+      repo=""
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --repo)
+            shift
+            repo="$1"
+            ;;
+        esac
+        shift
+      done
+      case "$repo" in
+        whengas/whengas-faker|jr200-labs/public-repo)
+          echo "42"
+          ;;
+        *)
+          echo "unexpected gh pr list repo: $repo" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    view)
+      number="$1"
+      shift
+      repo=""
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --repo)
+            shift
+            repo="$1"
+            ;;
+        esac
+        shift
+      done
+      if [ "$number" != "42" ]; then
+        echo "unexpected PR number: $number" >&2
+        exit 1
+      fi
+      case "$repo" in
+        whengas/whengas-faker|jr200-labs/public-repo)
+          jq -n --arg repo "$repo" '{
+            title: "fix(deps): update shared workflow ref",
+            headRefName: "renovate/shared-workflow-ref",
+            author: {is_bot: true},
+            autoMergeRequest: null,
+            url: ("https://github.com/" + $repo + "/pull/42"),
+            files: [
+              {path: ".github/.shared-config.yaml"},
+              {path: ".github/workflows/sync-shared-drift.yaml"},
+              {path: "scripts/sync-shared"}
+            ]
+          }'
+          ;;
+        *)
+          echo "unexpected gh pr view repo: $repo" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    merge)
+      number="$1"
+      shift
+      repo=""
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --repo)
+            shift
+            repo="$1"
+            ;;
+        esac
+        shift
+      done
+      if [ "$number" != "42" ]; then
+        echo "unexpected PR number: $number" >&2
+        exit 1
+      fi
+      case "$repo" in
+        whengas/whengas-faker|jr200-labs/public-repo)
+          echo "$repo#$number" >> "$TEST_CAPTURE_DIR/shared-ref-automerge.txt"
+          ;;
+        *)
+          echo "unexpected gh pr merge repo: $repo" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    *)
+      echo "unexpected gh pr subcommand: $subcommand" >&2
+      exit 1
+      ;;
+  esac
+  exit 0
+fi
+
+if [ "$command" != "api" ]; then
+  echo "unexpected gh command: $command $*" >&2
   exit 1
 fi
-shift
 
 endpoint=""
 method="GET"
@@ -76,6 +176,11 @@ while [ "$#" -gt 0 ]; do
   esac
   shift
 done
+
+if [ "$endpoint" = "repos/whengas/whengas-faker/pulls" ] || [ "$endpoint" = "repos/jr200-labs/public-repo/pulls" ]; then
+  echo "unexpected direct pulls API call; use gh pr list/view/merge wrapper in this test" >&2
+  exit 1
+fi
 
 case "$method:$endpoint" in
   "GET:orgs/whengas/repos?per_page=100&type=all")
@@ -157,6 +262,7 @@ TEST_CAPTURE_DIR="$capture" \
 
 org_payload="$capture/org-actions-policy.json"
 repo_payload="$capture/actions-policy.json"
+automerge_capture="$capture/shared-ref-automerge.txt"
 if [ ! -f "$org_payload" ]; then
   echo "expected org Actions private fork workflow approval payload to be written" >&2
   exit 1
@@ -174,5 +280,12 @@ for payload in "$org_payload" "$repo_payload"; do
   .require_approval_for_fork_pr_workflows == false
   ' "$payload" >/dev/null
 done
+
+if [ ! -f "$automerge_capture" ]; then
+  echo "expected shared workflow ref auto-merge queueing to be captured" >&2
+  exit 1
+fi
+grep -qx "whengas/whengas-faker#42" "$automerge_capture"
+grep -qx "jr200-labs/public-repo#42" "$automerge_capture"
 
 echo "test-apply-rulesets-actions-policy: ok"

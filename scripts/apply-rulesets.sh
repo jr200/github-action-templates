@@ -9,7 +9,8 @@
 # the script PUTs the canonical body to it (updating in place); otherwise
 # POSTs a new one. Repo-level merge hygiene settings are also reconciled on
 # every targeted repo:
-#   - allow_auto_merge=true
+#   - allow_auto_merge=true (GitHub prerequisite; only vetted shared-ref PRs
+#     are queued for auto-merge by this script)
 #   - delete_branch_on_merge=true
 #   - allow_update_branch=true
 #   - require_approval_for_fork_pr_workflows=false
@@ -46,7 +47,8 @@ Options:
   --ruleset <name>     Limit reconciliation to one ruleset from targets.yaml.
   --repo <org/repo>    Limit repo-scope reconciliation to one or more repos.
                        Repeat flag to target multiple repos.
-  --skip-auto-merge    Skip PATCH allow_auto_merge=true enforcement.
+  --skip-auto-merge    Skip PATCH allow_auto_merge=true enforcement and
+                       shared workflow ref PR auto-merge queueing.
   -h, --help           Show this help.
 
 Examples:
@@ -308,6 +310,82 @@ reconcile_actions_private_fork_workflow_policy() {
     rm -f "$tmp_body"
 }
 
+is_allowed_shared_ref_path() {
+    case "$1" in
+        .github/.shared-config.yaml|\
+        .github/workflows/*.yaml|\
+        .github/workflows/*.yml|\
+        .githooks/commit-msg|\
+        .githooks/lint-message-text.sh|\
+        cog.toml|\
+        scripts/sync-shared|\
+        scripts/sync-shared-drift-check|\
+        package.json|\
+        pnpm-lock.yaml)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+queue_shared_workflow_ref_automerge() {
+    local org="$1" repo="$2" fq pr_numbers pr_number pr_json title branch url author_is_bot auto_merge bad_paths path
+    fq="${org}/${repo}"
+
+    pr_numbers=$(gh pr list \
+        --repo "$fq" \
+        --state open \
+        --head renovate/shared-workflow-ref \
+        --json number \
+        --jq '.[].number')
+
+    while IFS= read -r pr_number; do
+        [ -z "$pr_number" ] && continue
+
+        pr_json=$(gh pr view "$pr_number" \
+            --repo "$fq" \
+            --json title,headRefName,author,autoMergeRequest,files,url)
+
+        title=$(jq -r '.title' <<<"$pr_json")
+        branch=$(jq -r '.headRefName' <<<"$pr_json")
+        url=$(jq -r '.url' <<<"$pr_json")
+        author_is_bot=$(jq -r '.author.is_bot' <<<"$pr_json")
+        auto_merge=$(jq -r '.autoMergeRequest != null' <<<"$pr_json")
+
+        if [ "$title" != "fix(deps): update shared workflow ref" ] || [ "$branch" != "renovate/shared-workflow-ref" ]; then
+            echo "  repo/$fq PR #$pr_number: skip shared-ref auto-merge (unexpected title/branch)"
+            continue
+        fi
+        if [ "$author_is_bot" != "true" ]; then
+            echo "  repo/$fq PR #$pr_number: skip shared-ref auto-merge (author is not a bot)"
+            continue
+        fi
+        if [ "$auto_merge" = "true" ]; then
+            echo "  repo/$fq PR #$pr_number: shared-ref auto-merge already queued"
+            continue
+        fi
+
+        bad_paths=""
+        while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            if ! is_allowed_shared_ref_path "$path"; then
+                bad_paths="${bad_paths}${path}"$'\n'
+            fi
+        done < <(jq -r '.files[].path' <<<"$pr_json")
+
+        if [ -n "$bad_paths" ]; then
+            echo "  repo/$fq PR #$pr_number: skip shared-ref auto-merge (unexpected paths)"
+            printf '%s' "$bad_paths" | sed 's/^/    - /'
+            continue
+        fi
+
+        echo "  repo/$fq PR #$pr_number: queue shared-ref auto-merge ($url)"
+        run gh pr merge "$pr_number" --repo "$fq" --squash --auto --delete-branch
+    done <<<"$pr_numbers"
+}
+
 # Reconcile repo-level merge hygiene settings that don't live in rulesets.
 # Rulesets cover branch protection / PR requirements; GitHub keeps a few
 # adjacent behaviors as plain repository settings.
@@ -348,6 +426,8 @@ reconcile_repo_settings() {
                     -F allow_update_branch=true \
                     --silent
             fi
+
+            queue_shared_workflow_ref_automerge "$org" "$repo"
         fi
 
         if [ "$scope" = "repo" ]; then

@@ -6,9 +6,10 @@
 #           ruleset per repo, applied to every non-archived repo in the org)
 #
 # Auto-merge: every repo listed (or discovered via repo scope) also gets
-# allow_auto_merge=true patched so generated sync-shared repair PRs can queue
-# auto-merge after checks pass. Workflow-triggered auto-merge remains limited
-# by the lint-no-auto-merge policy.
+# allow_auto_merge=true patched as a GitHub prerequisite. The script only
+# queues auto-merge for vetted `fix(deps): update shared workflow ref`
+# Renovate PRs; workflow-triggered auto-merge remains limited by the
+# lint-no-auto-merge policy.
 
 trunk-protect:
   whengas: org      # GitHub Team — org-level ruleset
