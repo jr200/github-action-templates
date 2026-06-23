@@ -89,9 +89,10 @@
       "enabled": false
     },
     {
-      "description": "Group shared workflow ref bumps. The reusable Renovate workflow repairs generated consumer files after Renovate creates or updates the branch.",
+      "description": "Group shared workflow ref bumps and let GitHub auto-merge them after checks pass. The reusable Renovate workflow repairs generated consumer files after Renovate creates or updates the branch, and this rule is deliberately narrower than general dependency updates.",
       "matchManagers": ["custom.regex"],
       "matchPackageNames": ["jr200-labs/github-action-templates"],
+      "automerge": true,
       "groupName": "shared workflow ref",
       "groupSlug": "shared-workflow-ref"
     },
