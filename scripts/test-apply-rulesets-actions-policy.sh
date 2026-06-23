@@ -41,15 +41,141 @@ cat > "$bin/gh" <<'GH'
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$1" != "api" ]; then
-  echo "unexpected gh command: $*" >&2
+command="$1"
+shift
+
+if [ "$command" = "pr" ]; then
+  subcommand="$1"
+  shift
+  case "$subcommand" in
+    list)
+      repo=""
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --repo)
+            shift
+            repo="$1"
+            ;;
+        esac
+        shift
+      done
+      case "$repo" in
+        whengas/whengas-faker)
+          printf '%s\n' 42 43 44
+          ;;
+        jr200-labs/public-repo)
+          echo "42"
+          ;;
+        *)
+          echo "unexpected gh pr list repo: $repo" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    view)
+      number="$1"
+      shift
+      repo=""
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --repo)
+            shift
+            repo="$1"
+            ;;
+        esac
+        shift
+      done
+      case "$repo" in
+        whengas/whengas-faker)
+          case "$number" in
+            42)
+              jq -n --arg repo "$repo" '{
+                title: "fix(deps): update shared workflow ref",
+                headRefName: "renovate/shared-workflow-ref",
+                author: {login: "app/whengas-ci-integration", is_bot: true},
+                autoMergeRequest: null,
+                url: ("https://github.com/" + $repo + "/pull/42"),
+                files: [
+                  {path: ".github/.shared-config.yaml"},
+                  {path: ".github/workflows/sync-shared-drift.yaml"},
+                  {path: "scripts/sync-shared"}
+                ]
+              }'
+              ;;
+            43)
+              jq -n --arg repo "$repo" '{
+                title: "fix(deps): update shared workflow ref",
+                headRefName: "renovate/shared-workflow-ref",
+                author: {login: "renovate[bot]", is_bot: true},
+                autoMergeRequest: null,
+                url: ("https://github.com/" + $repo + "/pull/43"),
+                files: [
+                  {path: ".github/.shared-config.yaml"},
+                  {path: ".github/workflows/sync-shared-drift.yaml"},
+                  {path: "scripts/sync-shared"}
+                ]
+              }'
+              ;;
+            44)
+              jq -n --arg repo "$repo" '{
+                title: "fix(deps): update shared workflow ref",
+                headRefName: "renovate/shared-workflow-ref",
+                author: {login: "app/whengas-ci-integration", is_bot: true},
+                autoMergeRequest: null,
+                url: ("https://github.com/" + $repo + "/pull/44"),
+                files: [
+                  {path: ".github/.shared-config.yaml"},
+                  {path: "src/unexpected.ts"}
+                ]
+              }'
+              ;;
+            *)
+              echo "unexpected PR number: $number" >&2
+              exit 1
+              ;;
+          esac
+          ;;
+        jr200-labs/public-repo)
+          jq -n --arg repo "$repo" '{
+            title: "fix(deps): update shared workflow ref",
+            headRefName: "renovate/shared-workflow-ref",
+            author: {login: "app/jr200-labs-cicd-bot", is_bot: true},
+            autoMergeRequest: null,
+            url: ("https://github.com/" + $repo + "/pull/42"),
+            files: [
+              {path: ".github/.shared-config.yaml"},
+              {path: ".github/workflows/sync-shared-drift.yaml"},
+              {path: "scripts/sync-shared"}
+            ]
+          }'
+          ;;
+        *)
+          echo "unexpected gh pr view repo: $repo" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    merge)
+      echo "shared-ref auto-merge is disabled; gh pr merge must not be called" >&2
+      exit 1
+      ;;
+    *)
+      echo "unexpected gh pr subcommand: $subcommand" >&2
+      exit 1
+      ;;
+  esac
+  exit 0
+fi
+
+if [ "$command" != "api" ]; then
+  echo "unexpected gh command: $command $*" >&2
   exit 1
 fi
-shift
 
 endpoint=""
 method="GET"
 input_file=""
+fields=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -X|--method)
@@ -62,6 +188,7 @@ while [ "$#" -gt 0 ]; do
       ;;
     -F|--field|--raw-field)
       shift
+      fields="${fields}${1}"$'\n'
       ;;
     --jq|-q|--paginate|--silent)
       if [ "$1" = "--jq" ] || [ "$1" = "-q" ]; then
@@ -76,6 +203,11 @@ while [ "$#" -gt 0 ]; do
   esac
   shift
 done
+
+if [ "$endpoint" = "repos/whengas/whengas-faker/pulls" ] || [ "$endpoint" = "repos/jr200-labs/public-repo/pulls" ]; then
+  echo "unexpected direct pulls API call; use gh pr list/view/merge wrapper in this test" >&2
+  exit 1
+fi
 
 case "$method:$endpoint" in
   "GET:orgs/whengas/repos?per_page=100&type=all")
@@ -106,15 +238,17 @@ case "$method:$endpoint" in
     cat "$TEST_RULESET_BODY"
     ;;
   "GET:/repos/whengas/whengas-faker")
-    printf '{"allow_auto_merge":false,"delete_branch_on_merge":true,"allow_update_branch":true}\n'
+    printf '{"allow_auto_merge":true,"delete_branch_on_merge":true,"allow_update_branch":true}\n'
     ;;
   "PATCH:/repos/whengas/whengas-faker")
+    printf '%s' "$fields" > "$TEST_CAPTURE_DIR/whengas-repo-settings.txt"
     true
     ;;
   "GET:/repos/jr200-labs/public-repo")
-    printf '{"allow_auto_merge":false,"delete_branch_on_merge":true,"allow_update_branch":true}\n'
+    printf '{"allow_auto_merge":true,"delete_branch_on_merge":true,"allow_update_branch":true}\n'
     ;;
   "PATCH:/repos/jr200-labs/public-repo")
+    printf '%s' "$fields" > "$TEST_CAPTURE_DIR/jr200-repo-settings.txt"
     true
     ;;
   "GET:/orgs/whengas/actions/permissions/fork-pr-workflows-private-repos")
@@ -157,6 +291,9 @@ TEST_CAPTURE_DIR="$capture" \
 
 org_payload="$capture/org-actions-policy.json"
 repo_payload="$capture/actions-policy.json"
+automerge_capture="$capture/shared-ref-automerge.txt"
+whengas_settings="$capture/whengas-repo-settings.txt"
+jr200_settings="$capture/jr200-repo-settings.txt"
 if [ ! -f "$org_payload" ]; then
   echo "expected org Actions private fork workflow approval payload to be written" >&2
   exit 1
@@ -173,6 +310,20 @@ for payload in "$org_payload" "$repo_payload"; do
   .send_secrets_and_variables == true and
   .require_approval_for_fork_pr_workflows == false
   ' "$payload" >/dev/null
+done
+
+if [ -f "$automerge_capture" ]; then
+  echo "did not expect shared workflow ref auto-merge queueing while disabled" >&2
+  exit 1
+fi
+for settings in "$whengas_settings" "$jr200_settings"; do
+  if [ ! -f "$settings" ]; then
+    echo "expected repo settings patch to be captured: $settings" >&2
+    exit 1
+  fi
+  grep -qx "allow_auto_merge=false" "$settings"
+  grep -qx "delete_branch_on_merge=true" "$settings"
+  grep -qx "allow_update_branch=true" "$settings"
 done
 
 echo "test-apply-rulesets-actions-policy: ok"

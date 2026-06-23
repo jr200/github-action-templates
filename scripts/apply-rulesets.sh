@@ -9,7 +9,9 @@
 # the script PUTs the canonical body to it (updating in place); otherwise
 # POSTs a new one. Repo-level merge hygiene settings are also reconciled on
 # every targeted repo:
-#   - allow_auto_merge=true
+#   - allow_auto_merge=false by default; when shared-ref automerge is enabled
+#     in config, this becomes true as GitHub's prerequisite for queueing vetted
+#     shared-ref PRs
 #   - delete_branch_on_merge=true
 #   - allow_update_branch=true
 #   - require_approval_for_fork_pr_workflows=false
@@ -46,7 +48,8 @@ Options:
   --ruleset <name>     Limit reconciliation to one ruleset from targets.yaml.
   --repo <org/repo>    Limit repo-scope reconciliation to one or more repos.
                        Repeat flag to target multiple repos.
-  --skip-auto-merge    Skip PATCH allow_auto_merge=true enforcement.
+  --skip-auto-merge    Skip PATCH allow_auto_merge enforcement and shared
+                       workflow ref PR auto-merge queueing.
   -h, --help           Show this help.
 
 Examples:
@@ -173,10 +176,17 @@ fi
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TARGETS="$REPO_ROOT/rulesets/targets.yaml"
 RULESETS_DIR="$REPO_ROOT/rulesets"
+SHARED_REF_AUTOMERGE_CONFIG="$RULESETS_DIR/shared-workflow-ref-automerge.json"
 
 for cmd in gh jq yq; do
     command -v "$cmd" >/dev/null 2>&1 || { echo "missing: $cmd" >&2; exit 1; }
 done
+
+[ -f "$SHARED_REF_AUTOMERGE_CONFIG" ] || { echo "missing config: $SHARED_REF_AUTOMERGE_CONFIG" >&2; exit 1; }
+
+shared_ref_automerge_enabled() {
+    jq -e '.enabled == true' "$SHARED_REF_AUTOMERGE_CONFIG" >/dev/null
+}
 
 run() {
     if [ "$DRY_RUN" = 1 ]; then
@@ -308,6 +318,87 @@ reconcile_actions_private_fork_workflow_policy() {
     rm -f "$tmp_body"
 }
 
+is_allowed_shared_ref_author() {
+    local login="$1"
+
+    jq -e --arg login "$login" '.allowedAuthorLogins | index($login) != null' "$SHARED_REF_AUTOMERGE_CONFIG" >/dev/null
+}
+
+is_allowed_shared_ref_path() {
+    local path="$1" glob
+
+    while IFS= read -r glob; do
+        [ -z "$glob" ] && continue
+        if [[ "$path" == $glob ]]; then
+            return 0
+        fi
+    done < <(jq -r '.allowedPathGlobs[]' "$SHARED_REF_AUTOMERGE_CONFIG")
+
+    return 1
+}
+
+queue_shared_workflow_ref_automerge() {
+    local org="$1" repo="$2" fq pr_numbers pr_number pr_json title branch expected_title expected_branch url author_login author_is_bot auto_merge bad_paths path
+    fq="${org}/${repo}"
+    if ! shared_ref_automerge_enabled; then
+        return
+    fi
+    expected_title=$(jq -r '.title' "$SHARED_REF_AUTOMERGE_CONFIG")
+    expected_branch=$(jq -r '.headRefName' "$SHARED_REF_AUTOMERGE_CONFIG")
+
+    pr_numbers=$(gh pr list \
+        --repo "$fq" \
+        --state open \
+        --head "$expected_branch" \
+        --json number \
+        --jq '.[].number')
+
+    while IFS= read -r pr_number; do
+        [ -z "$pr_number" ] && continue
+
+        pr_json=$(gh pr view "$pr_number" \
+            --repo "$fq" \
+            --json title,headRefName,author,autoMergeRequest,files,url)
+
+        title=$(jq -r '.title' <<<"$pr_json")
+        branch=$(jq -r '.headRefName' <<<"$pr_json")
+        url=$(jq -r '.url' <<<"$pr_json")
+        author_login=$(jq -r '.author.login' <<<"$pr_json")
+        author_is_bot=$(jq -r '.author.is_bot' <<<"$pr_json")
+        auto_merge=$(jq -r '.autoMergeRequest != null' <<<"$pr_json")
+
+        if [ "$title" != "$expected_title" ] || [ "$branch" != "$expected_branch" ]; then
+            echo "  repo/$fq PR #$pr_number: skip shared-ref auto-merge (unexpected title/branch)"
+            continue
+        fi
+        if [ "$author_is_bot" != "true" ] || ! is_allowed_shared_ref_author "$author_login"; then
+            echo "  repo/$fq PR #$pr_number: skip shared-ref auto-merge (author is not an allowed app: $author_login)"
+            continue
+        fi
+        if [ "$auto_merge" = "true" ]; then
+            echo "  repo/$fq PR #$pr_number: shared-ref auto-merge already queued"
+            continue
+        fi
+
+        bad_paths=""
+        while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            if ! is_allowed_shared_ref_path "$path"; then
+                bad_paths="${bad_paths}${path}"$'\n'
+            fi
+        done < <(jq -r '.files[].path' <<<"$pr_json")
+
+        if [ -n "$bad_paths" ]; then
+            echo "  repo/$fq PR #$pr_number: skip shared-ref auto-merge (unexpected paths)"
+            printf '%s' "$bad_paths" | sed 's/^/    - /'
+            continue
+        fi
+
+        echo "  repo/$fq PR #$pr_number: queue shared-ref auto-merge ($url)"
+        run gh pr merge "$pr_number" --repo "$fq" --squash --auto --delete-branch
+    done <<<"$pr_numbers"
+}
+
 # Reconcile repo-level merge hygiene settings that don't live in rulesets.
 # Rulesets cover branch protection / PR requirements; GitHub keeps a few
 # adjacent behaviors as plain repository settings.
@@ -340,14 +431,23 @@ reconcile_repo_settings() {
             delete_branch=$(jq -r '.delete_branch_on_merge' <<<"$current")
             update_branch=$(jq -r '.allow_update_branch' <<<"$current")
 
-            if [ "$auto_merge" != "true" ] || [ "$delete_branch" != "true" ] || [ "$update_branch" != "true" ]; then
-                echo "  repo/$org/$repo: reconcile allow_auto_merge=true, delete_branch_on_merge=true, allow_update_branch=true (drift detected)"
+            local desired_auto_merge
+            if shared_ref_automerge_enabled; then
+                desired_auto_merge=true
+            else
+                desired_auto_merge=false
+            fi
+
+            if [ "$auto_merge" != "$desired_auto_merge" ] || [ "$delete_branch" != "true" ] || [ "$update_branch" != "true" ]; then
+                echo "  repo/$org/$repo: reconcile allow_auto_merge=${desired_auto_merge}, delete_branch_on_merge=true, allow_update_branch=true (drift detected)"
                 run gh api -X PATCH "/repos/$org/$repo" \
-                    -F allow_auto_merge=true \
+                    -F allow_auto_merge="$desired_auto_merge" \
                     -F delete_branch_on_merge=true \
                     -F allow_update_branch=true \
                     --silent
             fi
+
+            queue_shared_workflow_ref_automerge "$org" "$repo"
         fi
 
         if [ "$scope" = "repo" ]; then

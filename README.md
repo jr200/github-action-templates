@@ -16,7 +16,7 @@ Release with generated notes.
 
 ## Merge Policy
 
-Both consumer orgs (`whengas/`, `jr200-labs/`) enforce default-branch protection centrally: rulesets require PRs, repo settings enable auto-merge + branch auto-delete, and the `lint-no-auto-merge` workflow in `hygiene` fails CI if any caller workflow invokes `gh pr merge`, `--auto-merge`, or `gh pr review --approve`. The only workflow-triggered auto-merge exception is the generated `sync-shared-drift` repair PR, which is constrained to the canonical sync branch, title, and generated file set. Bots build, test, and publish artifacts; humans merge everything else.
+Both consumer orgs (`whengas/`, `jr200-labs`) enforce default-branch protection centrally: rulesets require PRs, repo settings disable auto-merge by default + enable branch auto-delete, and the `lint-no-auto-merge` workflow in `hygiene` fails CI if any caller workflow invokes `gh pr merge`, `--auto-merge`, or `gh pr review --approve`. Shared-ref auto-merge guardrails live in config for a future opt-in, but the feature is currently disabled.
 
 ## Important
 

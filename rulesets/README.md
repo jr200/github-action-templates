@@ -6,9 +6,10 @@ Source-of-truth for GitHub branch-protection rulesets across jr200-labs and cons
 
 ```
 rulesets/
-├── trunk-protect.json   # canonical ruleset body (verbatim API payload)
-├── targets.yaml         # which ruleset → which org → org-scope or per-repo-scope
-└── README.md            # this file
+├── trunk-protect.json                   # canonical ruleset body (verbatim API payload)
+├── shared-workflow-ref-automerge.json   # exact PR policy for shared-ref auto-merge queueing
+├── targets.yaml                         # which ruleset → which org → org-scope or per-repo-scope
+└── README.md                            # this file
 ```
 
 ## Run
@@ -35,7 +36,7 @@ Requires `gh`, `jq`, `yq` and a `gh auth login` with admin on every targeted org
 
 Adjacent repo settings are also reconciled on every targeted repo:
 
-- `allow_auto_merge=true` so the generated `sync-shared-drift` repair PR can queue auto-merge after checks pass. Workflow-triggered auto-merge remains blocked by `lint-no-auto-merge` except for the annotated sync-shared repair step.
+- `allow_auto_merge=false` by default. `shared-workflow-ref-automerge.json` keeps the exact title, branch, allowed GitHub App author login, and allowed generated-file globs needed if shared-ref auto-merge is explicitly enabled later.
 - `delete_branch_on_merge=true` so merged PR branches are cleaned up automatically.
 - `allow_update_branch=true` so PRs can use GitHub's `Update branch` button when the base branch moves ahead.
 
@@ -67,7 +68,7 @@ Useful flags for staged rollout:
 - `--repo ORG/REPO` (repeatable): target specific repos only.
 - `--org ORG`: narrow to one supported org (`jr200-labs`, `whengas`, or `janeway-labs`) and prompt `Y/n` per repo before applying repo-scoped changes. For org-scoped rulesets, the script also prompts once before applying the org-wide rule.
 - `--ruleset NAME`: apply one canonical ruleset only.
-- `--skip-auto-merge`: skip repo-level merge-setting patches (`allow_auto_merge=true`, `delete_branch_on_merge=true`, `allow_update_branch=true`) if you only want ruleset reconciliation.
+- `--skip-auto-merge`: skip repo-level merge-setting patches (`allow_auto_merge`, `delete_branch_on_merge`, `allow_update_branch`) and shared workflow ref PR auto-merge queueing if you only want ruleset reconciliation.
 
 ## Adding a new ruleset
 
