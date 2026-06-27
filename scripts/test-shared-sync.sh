@@ -26,6 +26,8 @@ jobs:
     uses: jr200-labs/github-action-templates/.github/workflows/ci_npmjs.yaml@master
   commitlint:
     uses: jr200-labs/github-action-templates/.github/workflows/lint_commits.yaml@master
+  lint-pr-metadata:
+    uses: jr200-labs/github-action-templates/.github/workflows/lint_pr_metadata.yaml@master
 YAML
     cat > "$repo_dir/package.json" <<'JSON'
 {
@@ -62,6 +64,8 @@ make_consumer_repo "$consumer_repo"
     test -f .github/workflows/sync-shared-drift.yaml
     test -f .github/workflows/ci.yaml
     ! yq -e '.jobs.commitlint' .github/workflows/ci.yaml >/dev/null 2>&1
+    ! yq -e '.jobs."lint-pr-metadata"' .github/workflows/ci.yaml >/dev/null 2>&1
+    ! grep -q 'lint_pr_metadata.yaml@master' .github/workflows/ci.yaml
     test -x .githooks/commit-msg
     test -x .githooks/lint-message-text.sh
     test -f cog.toml
@@ -91,6 +95,32 @@ YAML
     test -f .github/workflows/ci-node-size-limit.yaml
     yq -e '.jobs.ci.with."run-size-limit" == true' .github/workflows/ci-node-size-limit.yaml >/dev/null
     ! yq -e '.jobs.commitlint' .github/workflows/ci-node-size-limit.yaml >/dev/null 2>&1
+    STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
+)
+
+metadata_repo="$TMPDIR/metadata-consumer"
+make_consumer_repo "$metadata_repo"
+# Bad consumer input: a bespoke ci.yaml must not keep a duplicate
+# lint-pr-metadata job when the shared hygiene workflow owns it.
+cat > "$metadata_repo/.github/workflows/ci.yaml" <<'YAML'
+name: ci
+
+on:
+  pull_request:
+
+jobs:
+  ci:
+    uses: jr200-labs/github-action-templates/.github/workflows/ci_npmjs.yaml@master
+  lint-pr-metadata:
+    uses: jr200-labs/github-action-templates/.github/workflows/lint_pr_metadata.yaml@master
+YAML
+(
+    cd "$metadata_repo"
+    git init -q
+    SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared
+    test -f .github/workflows/lint-pr-metadata.yaml
+    test -f .github/workflows/ci.yaml
+    ! grep -q 'lint_pr_metadata.yaml@master' .github/workflows/ci.yaml
     STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
 )
 
