@@ -23,8 +23,9 @@ on:
         type: string
       platforms:
         description: platform-filter-json
-        required: true
+        required: false
         type: string
+        default: ''
       runner:
         description: 'Runner label override for all jobs. Defaults to the caller org RUNNER_PROFILE heavy/default tiers.'
         required: false
@@ -89,19 +90,53 @@ jobs:
         id: create-matrix
         run: |
           platforms='${{ inputs.platforms }}'
+          docker_image_platforms='${{ vars.DOCKER_IMAGE_PLATFORMS }}'
           default_universe='${{ env.DEFAULT_UNIVERSE }}'
 
           echo "input filtered_platforms: $platforms"
+          echo "org/repo DOCKER_IMAGE_PLATFORMS: $docker_image_platforms"
           echo "input default_universe: $default_universe"
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "filtering matrix using workflow_dispatch arguments"
-            result_matrix=$(echo "$default_universe" | jq -c --argjson platforms "$platforms" '[.[] | select($platforms[] == .platform)]')
-          else
-            echo "matrix filtering skipped"
-            result_matrix=$(echo "$default_universe" | jq -c)
+          if [ -z "$platforms" ] || [ "$platforms" = "null" ]; then
+            platforms="$docker_image_platforms"
           fi
 
+          platforms_json=$(jq -nc --arg raw "$platforms" '
+            ($raw | gsub("^\\s+|\\s+$"; "")) as $raw |
+            if $raw == "" or $raw == "null" then
+              ["linux/amd64", "linux/arm64"]
+            else
+              (try ($raw | fromjson) catch $raw) as $parsed |
+              if ($parsed | type) == "array" then
+                $parsed
+              elif ($parsed | type) == "string" then
+                ($parsed | split(","))
+              else
+                error("platforms must be a JSON array or comma-separated string")
+              end
+              | map(gsub("^\\s+|\\s+$"; ""))
+              | map(select(. != ""))
+            end
+          ')
+
+          unknown_platforms=$(jq -nc \
+            --argjson requested "$platforms_json" \
+            --argjson universe "$default_universe" \
+            '$requested - ($universe | map(.platform))')
+          if [ "$unknown_platforms" != "[]" ]; then
+            echo "::error::unsupported docker image platform(s): $unknown_platforms"
+            exit 1
+          fi
+
+          result_matrix=$(echo "$default_universe" | jq -c \
+            --argjson platforms "$platforms_json" \
+            '[.[] | select(.platform as $platform | $platforms | index($platform))]')
+          if [ "$result_matrix" = "[]" ]; then
+            echo "::error::docker image platform filter resolved to an empty matrix"
+            exit 1
+          fi
+
+          echo "resolved platforms: $platforms_json"
           echo set-matrix: $result_matrix
           echo "matrix=$result_matrix" >> $GITHUB_OUTPUT
 
