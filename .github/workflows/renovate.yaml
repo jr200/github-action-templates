@@ -137,7 +137,7 @@ jobs:
       - name: Restore Renovate cache
         uses: actions/cache@v4
         with:
-          path: .renovate-cache
+          path: .renovate-out/cache
           key: renovate-${{ runner.os }}-${{ github.repository_id }}-${{ github.run_id }}
           restore-keys: |
             renovate-${{ runner.os }}-${{ github.repository_id }}-
@@ -145,8 +145,8 @@ jobs:
       - name: Prepare Renovate writable dirs
         shell: bash
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/.renovate-out" "$GITHUB_WORKSPACE/.renovate-cache"
-          chmod -R u+rwX,go+rwX "$GITHUB_WORKSPACE/.renovate-out" "$GITHUB_WORKSPACE/.renovate-cache"
+          mkdir -p "$GITHUB_WORKSPACE/.renovate-out/cache"
+          chmod -R u+rwX,go+rwX "$GITHUB_WORKSPACE/.renovate-out"
 
       - name: Self-hosted Renovate (pass 1)
         # renovatebot/github-action only publishes specific patch tags, no
@@ -160,7 +160,10 @@ jobs:
           # runner pod's network. Dind's default bridge network has
           # routing issues that cause ETIMEDOUT on api.github.com.
           docker-network: host
-          # Mount the world-writable report and cache dirs into the container.
+          # Mount the world-writable report dir into the container. The cache
+          # lives under /out/cache so renovatebot/github-action only needs one
+          # docker-volumes entry; multiple entries are passed to docker as one
+          # malformed --volume value by v46.1.16.
           # ARC dind shares `_work` (= github.workspace) with the runner
           # via emptyDir, so writes here are visible to subsequent
           # runner steps. The renovate container runs as `node` (uid
@@ -168,7 +171,6 @@ jobs:
           # workspace; the prepared writable subdirs sidestep that.
           docker-volumes: |
             ${{ github.workspace }}/.renovate-out:/out
-            ${{ github.workspace }}/.renovate-cache:/tmp/renovate/cache
           env-regex: '^(?:RENOVATE_\w+|LOG_LEVEL|GITHUB_COM_TOKEN|NODE_OPTIONS|NO_COLOR|(?:HTTPS?|NO)_PROXY|(?:https?|no)_proxy|PNPM_CONFIG_MINIMUM_RELEASE_AGE)$'
         env:
           LOG_LEVEL: ${{ inputs.log-level }}
@@ -178,7 +180,7 @@ jobs:
           RENOVATE_BINARY_SOURCE: install
           # Persist Renovate's HTTP/release metadata, repository JSON cache,
           # and containerbase tool downloads between workflow runs.
-          RENOVATE_CACHE_DIR: /tmp/renovate/cache
+          RENOVATE_CACHE_DIR: /out/cache
           RENOVATE_REPOSITORY_CACHE: 'enabled'
           # Restrict Renovate to the current repo only.
           RENOVATE_REPOSITORIES: ${{ github.repository }}
@@ -243,12 +245,11 @@ jobs:
           docker-network: host
           docker-volumes: |
             ${{ github.workspace }}/.renovate-out:/out
-            ${{ github.workspace }}/.renovate-cache:/tmp/renovate/cache
           env-regex: '^(?:RENOVATE_\w+|LOG_LEVEL|GITHUB_COM_TOKEN|NODE_OPTIONS|NO_COLOR|(?:HTTPS?|NO)_PROXY|(?:https?|no)_proxy|PNPM_CONFIG_MINIMUM_RELEASE_AGE)$'
         env:
           LOG_LEVEL: ${{ inputs.log-level }}
           RENOVATE_BINARY_SOURCE: install
-          RENOVATE_CACHE_DIR: /tmp/renovate/cache
+          RENOVATE_CACHE_DIR: /out/cache
           RENOVATE_REPOSITORY_CACHE: 'enabled'
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_ONBOARDING: 'false'
