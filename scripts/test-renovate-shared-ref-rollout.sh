@@ -30,6 +30,26 @@ if [ "$allowed_count" -ne 2 ]; then
     exit 1
 fi
 
+if ! grep -q 'uses: actions/cache@v4' "$renovate_workflow"; then
+    echo "renovate workflow must restore a persisted Renovate cache" >&2
+    exit 1
+fi
+if ! grep -q 'key: renovate-${{ runner.os }}-${{ github.repository_id }}-${{ github.run_id }}' "$renovate_workflow"; then
+    echo "renovate cache key must be run-specific so updated caches are saved" >&2
+    exit 1
+fi
+if ! grep -q 'renovate-${{ runner.os }}-${{ github.repository_id }}-' "$renovate_workflow"; then
+    echo "renovate cache must restore from a stable per-repository prefix" >&2
+    exit 1
+fi
+cache_dir_count=$(grep -c 'RENOVATE_CACHE_DIR: /tmp/renovate/cache' "$renovate_workflow" || true)
+repository_cache_count=$(grep -c "RENOVATE_REPOSITORY_CACHE: 'enabled'" "$renovate_workflow" || true)
+cache_mount_count=$(grep -c '.renovate-cache:/tmp/renovate/cache' "$renovate_workflow" || true)
+if [ "$cache_dir_count" -ne 2 ] || [ "$repository_cache_count" -ne 2 ] || [ "$cache_mount_count" -ne 2 ]; then
+    echo "renovate workflow must wire the cache dir into both Renovate passes" >&2
+    exit 1
+fi
+
 if ! grep -q 'id: renovate-pass2' "$renovate_workflow"; then
     echo "renovate workflow must gate the second Renovate pass" >&2
     exit 1
