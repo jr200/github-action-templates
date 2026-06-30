@@ -30,6 +30,23 @@ if [ "$allowed_count" -ne 2 ]; then
     exit 1
 fi
 
+if ! grep -q 'id: renovate-pass2' "$renovate_workflow"; then
+    echo "renovate workflow must gate the second Renovate pass" >&2
+    exit 1
+fi
+if ! grep -q 'select(.result? == "repository-changed")' "$renovate_workflow"; then
+    echo "renovate pass 2 gate must be driven by the pass 1 repository-changed report result" >&2
+    exit 1
+fi
+if ! grep -q "steps.renovate-pass2.outputs.run == 'true'" "$renovate_workflow"; then
+    echo "renovate pass 2 must only run when the pass 1 gate says it is needed" >&2
+    exit 1
+fi
+if ! grep -q "steps.renovate-pass2.outputs.run || 'false'" "$renovate_workflow"; then
+    echo "renovate report validation must allow pass 2 to be skipped by the gate" >&2
+    exit 1
+fi
+
 node_setup_line=$(grep -n 'uses: actions/setup-node@' "$renovate_workflow" | tail -n1 | cut -d: -f1 || true)
 pnpm_setup_line=$(grep -n 'uses: pnpm/action-setup@' "$renovate_workflow" | tail -n1 | cut -d: -f1 || true)
 cog_setup_line=$(grep -n 'uses: cocogitto/cocogitto-action@' "$renovate_workflow" | head -n1 | cut -d: -f1 || true)

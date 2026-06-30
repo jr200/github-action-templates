@@ -189,14 +189,35 @@ jobs:
           RENOVATE_REPORT_TYPE: 'file'
           RENOVATE_REPORT_PATH: /out/pass1.report.json
 
+      - name: Decide whether Renovate pass 2 is needed
+        id: renovate-pass2
+        if: success() && inputs.dry-run == ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$GITHUB_WORKSPACE/.renovate-out/pass1.report.json"
+          if [ ! -f "$report" ]; then
+            echo "::error title=Renovate report missing::Expected $report — Renovate may have failed before writing it."
+            exit 1
+          fi
+
+          if jq -e '.. | objects | select(.result? == "repository-changed")' "$report" >/dev/null; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Renovate pass 1 reported repository-changed; pass 2 will run."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Renovate pass 1 did not report repository-changed; pass 2 will be skipped."
+          fi
+
       - name: Self-hosted Renovate (pass 2 — catches repository-changed quirk)
         # Renovate occasionally exits with `"result": "repository-changed"`
         # after pushing a branch update but BEFORE opening the PR, deferring
         # PR creation to the next scheduled run. A second idempotent pass
-        # right after the first closes this gap: if pass 1 already opened
-        # the PR, pass 2 is a ~30s no-op; if pass 1 deferred, pass 2 creates
-        # the PR. Skipped on dry-run so debug runs don't double-execute.
-        if: success() && inputs.dry-run == ''
+        # right after the first closes this gap. Keep this conditional:
+        # an unconditional second pass can race with a human merge from pass 1
+        # and rewrite the closed PR title/body to a newer available version
+        # without changing the already-merged commit.
+        if: success() && inputs.dry-run == '' && steps.renovate-pass2.outputs.run == 'true'
         uses: renovatebot/github-action@v46.1.16
         with:
           token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
@@ -270,6 +291,9 @@ jobs:
           for label in pass1 pass2; do
             report="$GITHUB_WORKSPACE/.renovate-out/${label}.report.json"
             if [ ! -f "$report" ]; then
+              if [ "$label" = "pass2" ] && [ "${{ steps.renovate-pass2.outputs.run || 'false' }}" != "true" ]; then
+                continue
+              fi
               echo "::error title=Renovate report missing::Expected $report — Renovate may have failed before writing it."
               exit 1
             fi
