@@ -59,6 +59,11 @@ on:
         required: false
         type: string
         default: ''
+      config-file:
+        description: Optional Renovate config file path for scoped/manual lanes
+        required: false
+        type: string
+        default: ''
       client-id:
         description: >
           GitHub App Client ID for minting installation tokens. Callers should
@@ -201,6 +206,7 @@ jobs:
           # 0777, mounted above) so the post-step can read it.
           RENOVATE_REPORT_TYPE: 'file'
           RENOVATE_REPORT_PATH: /out/pass1.report.json
+          RENOVATE_CONFIG_FILE: ${{ inputs.config-file }}
 
       - name: Decide whether Renovate pass 2 is needed
         id: renovate-pass2
@@ -252,6 +258,7 @@ jobs:
           RENOVATE_CUSTOM_ENV_VARIABLES: '{"PNPM_CONFIG_MINIMUM_RELEASE_AGE":"0"}'
           RENOVATE_REPORT_TYPE: 'file'
           RENOVATE_REPORT_PATH: /out/pass2.report.json
+          RENOVATE_CONFIG_FILE: ${{ inputs.config-file }}
 
       - name: Checkout shared repair scripts
         if: success() && inputs.dry-run == ''
