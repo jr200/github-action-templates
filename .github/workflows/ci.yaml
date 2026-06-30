@@ -90,6 +90,7 @@ jobs:
       - name: Test shared sync scripts
         run: |
           ./scripts/test-message-text-policy.sh
+          ./scripts/test-docker-image-platform-toggle.sh
           ./scripts/test-lint-no-auto-merge.sh
           ./scripts/test-shared-sync.sh
           ./scripts/test-repair-renovate-uv-lock-branches.sh
