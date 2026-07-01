@@ -107,8 +107,16 @@ if [[ "$private_git_rule_count" != "1" ]]; then
   exit 1
 fi
 
-if grep -q 'uses: astral-sh/setup-uv@' "$workflow"; then
-  echo "FAIL: Renovate workflow must not run setup-uv speculatively; uv is only needed for the post-Renovate repair path" >&2
+uv_setup_line="$(grep -n 'uses: astral-sh/setup-uv@' "$workflow" | head -n1 | cut -d: -f1 || true)"
+uv_repair_line="$(grep -n 'repair-renovate-uv-lock-branches.sh' "$workflow" | head -n1 | cut -d: -f1 || true)"
+if [[ -z "$uv_setup_line" || -z "$uv_repair_line" || "$uv_setup_line" -ge "$uv_repair_line" ]]; then
+  echo "FAIL: Renovate workflow must install uv before repairing Renovate Python branches" >&2
+  exit 1
+fi
+
+if ! sed -n "$((uv_setup_line - 2)),$((uv_setup_line + 2))p" "$workflow" \
+  | grep -q "inputs.dry-run == '' && hashFiles('pyproject.toml') != ''"; then
+  echo "FAIL: Renovate workflow must only run setup-uv for the post-Renovate Python repair path" >&2
   exit 1
 fi
 
