@@ -82,6 +82,18 @@ if ! grep -q "steps.renovate-pass2.outputs.run || 'false'" "$renovate_workflow";
     exit 1
 fi
 
+uv_setup_line=$(grep -n 'uses: astral-sh/setup-uv@' "$renovate_workflow" | head -n1 | cut -d: -f1 || true)
+uv_repair_line=$(grep -n 'repair-renovate-uv-lock-branches.sh' "$renovate_workflow" | head -n1 | cut -d: -f1 || true)
+if [ -z "$uv_setup_line" ] || [ -z "$uv_repair_line" ] || [ "$uv_setup_line" -ge "$uv_repair_line" ]; then
+    echo "renovate workflow must install uv before repairing Renovate Python branches" >&2
+    exit 1
+fi
+if ! sed -n "$((uv_setup_line - 2)),$((uv_setup_line + 2))p" "$renovate_workflow" \
+    | grep -q "inputs.dry-run == '' && hashFiles('pyproject.toml') != ''"; then
+    echo "renovate workflow must only install uv for Python repair runs" >&2
+    exit 1
+fi
+
 node_setup_line=$(grep -n 'uses: actions/setup-node@' "$renovate_workflow" | tail -n1 | cut -d: -f1 || true)
 pnpm_setup_line=$(grep -n 'uses: pnpm/action-setup@' "$renovate_workflow" | tail -n1 | cut -d: -f1 || true)
 cog_setup_line=$(grep -n 'uses: cocogitto/cocogitto-action@' "$renovate_workflow" | head -n1 | cut -d: -f1 || true)
