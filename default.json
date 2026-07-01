@@ -35,6 +35,19 @@
       "semanticCommitScope": "deps"
     },
     {
+      "description": "Internal packages are part of our own release pipeline, so they should roll forward immediately instead of waiting behind Renovate's release-age hold. This keeps chained infra releases moving when one repo consumes a just-published package from another internal repo.",
+      "matchPackageNames": [
+        "polars-hist-db",
+        "whengas/**",
+        "whengas-*",
+        "jr200-labs/**",
+        "jr200-*",
+        "janeway-labs/**",
+        "janeway-*"
+      ],
+      "minimumReleaseAge": null
+    },
+    {
       "description": "Major upgrades always require explicit human review. feat(deps) so release-please cuts a minor bump on merge (or major, depending on the consumer's release-please config).",
       "matchUpdateTypes": ["major"],
       "automerge": false,
@@ -94,6 +107,14 @@
       "matchPackageNames": ["jr200-labs/github-action-templates"],
       "groupName": "shared workflow ref",
       "groupSlug": "shared-workflow-ref"
+    },
+    {
+      "description": "Private git Python deps use github-tags package names like whengas/pyapi-service-kit, but uv's --upgrade-package expects the Python distribution name. Keep these out of mixed PyPI groups and skip Renovate's automatic artifact updater; the shared uv lock postUpgradeTask below regenerates uv.lock with plain `uv lock`.",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["whengas/**", "jr200-labs/**", "janeway-labs/**"],
+      "groupName": "private git Python dependencies",
+      "groupSlug": "private-git-python",
+      "skipArtifactsUpdate": true
     },
     {
       "description": "Regenerate uv.lock whenever Renovate changes Python dependencies in pyproject.toml. Renovate's pep621/custom regex managers update the manifest but do not keep uv lockfiles in sync, so CI's `uv lock --check` fails on generated dependency PRs.",

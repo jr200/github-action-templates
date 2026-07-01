@@ -40,7 +40,7 @@ if [ "$config_file_count" -ne 2 ]; then
     exit 1
 fi
 
-if ! grep -q 'uses: actions/cache@v4' "$renovate_workflow"; then
+if ! grep -Eq 'uses: actions/cache@v[0-9]+' "$renovate_workflow"; then
     echo "renovate workflow must restore a persisted Renovate cache" >&2
     exit 1
 fi
