@@ -248,6 +248,7 @@ download_to "sync.sh" "${SHARED_DIR}/sync.sh" || true
 [ -f "${SHARED_DIR}/lint-release-please-config.sh" ] && chmod +x "${SHARED_DIR}/lint-release-please-config.sh"
 [ -f ".githooks/commit-msg" ] && chmod +x ".githooks/commit-msg"
 [ -f ".githooks/lint-message-text.sh" ] && chmod +x ".githooks/lint-message-text.sh"
+[ -f ".githooks/pre-commit" ] && chmod +x ".githooks/pre-commit"
 
 if has_language node; then
     ensure_pnpm_workspace_defaults
