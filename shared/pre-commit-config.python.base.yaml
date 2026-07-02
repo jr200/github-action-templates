@@ -1,0 +1,31 @@
+repos:
+  - repo: local
+    hooks:
+      - id: sync-shared
+        name: sync shared configs
+        entry: bash -c 'mkdir -p .shared; [ -x .shared/sync.sh ] || { curl -sfL --max-time 10 "https://raw.githubusercontent.com/jr200-labs/github-action-templates/master/shared/sync.sh" -o .shared/sync.sh 2>/dev/null && chmod +x .shared/sync.sh; }; [ -x .shared/sync.sh ] && .shared/sync.sh python; exit 0'
+        language: system
+        always_run: true
+        pass_filenames: false
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.0
+    hooks:
+      - id: ruff
+        args: [--config=.shared/ruff.toml, --fix]
+      - id: ruff-format
+        args: [--config=.shared/ruff.toml]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.16.0
+    hooks:
+      - id: mypy
+        args: [--config-file=pyproject.toml]
+        pass_filenames: false
+
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.22.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        additional_dependencies: ['@commitlint/config-conventional']
