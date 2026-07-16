@@ -44,6 +44,11 @@ if ! grep -Eq 'uses: actions/cache@v[0-9]+' "$renovate_workflow"; then
     echo "renovate workflow must restore a persisted Renovate cache" >&2
     exit 1
 fi
+if ! grep -A6 -F 'name: Restore Renovate cache' "$renovate_workflow" \
+    | grep -q "if: github.event_name != 'workflow_dispatch'"; then
+    echo "manual Renovate runs must bypass the persisted datasource cache" >&2
+    exit 1
+fi
 if ! grep -q 'key: renovate-${{ runner.os }}-${{ github.repository_id }}-${{ github.run_id }}' "$renovate_workflow"; then
     echo "renovate cache key must be run-specific so updated caches are saved" >&2
     exit 1
