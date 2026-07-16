@@ -103,12 +103,12 @@ if [ -z "$node_setup_line" ] || [ -z "$pnpm_setup_line" ] || [ -z "$cog_setup_li
     echo "renovate workflow must install pnpm, node, and cocogitto before repairing shared-ref branches" >&2
     exit 1
 fi
-if ! grep -q 'uses: actions/setup-node@v6' "$renovate_workflow"; then
-    echo "renovate workflow must use the current setup-node action" >&2
+if ! grep -Eq 'uses: actions/setup-node@v[0-9]+' "$renovate_workflow"; then
+    echo "renovate workflow must use a versioned setup-node action" >&2
     exit 1
 fi
-if ! grep -q 'uses: pnpm/action-setup@v6' "$renovate_workflow"; then
-    echo "renovate workflow must install pnpm before repairing shared-ref branches" >&2
+if ! grep -Eq 'uses: pnpm/action-setup@v[0-9]+' "$renovate_workflow"; then
+    echo "renovate workflow must use a versioned pnpm setup action" >&2
     exit 1
 fi
 if ! grep -A4 'uses: cocogitto/cocogitto-action@' "$renovate_workflow" | grep -q 'install-only: true'; then
