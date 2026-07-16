@@ -10,6 +10,12 @@ trap 'rm -rf "$TMPDIR"' EXIT
 grep -q "DOCKER_IMAGE_PLATFORMS" "$caller"
 grep -q "DOCKER_IMAGE_PLATFORMS" "$reusable"
 grep -q "docker_image_platforms" "$reusable"
+grep -q 'cache-from: type=gha,scope=${{ inputs.image_name }}-${{ matrix.platform }}' "$reusable"
+grep -q 'cache-to: type=gha,scope=${{ inputs.image_name }}-${{ matrix.platform }},mode=min' "$reusable"
+if grep -q 'scope=${{ inputs.tag }}-' "$reusable"; then
+    echo "docker image cache must survive release tags" >&2
+    exit 1
+fi
 
 if grep -q "matrix filtering skipped" "$reusable"; then
     echo "docker image platform filtering must apply outside workflow_dispatch" >&2
