@@ -46,8 +46,10 @@ jobs:
         with:
           node-version: ${{ inputs.node-version }}
 
-      - uses: pnpm/action-setup@v6
-        name: Install pnpm
+      - name: Install pnpm
+        run: |
+          PNPM_VERSION="$(node -p "require('./package.json').packageManager?.replace(/^pnpm@/, '') || '11'")"
+          npm install --global "pnpm@$PNPM_VERSION"
 
       - name: Use clean pnpm-workspace config for CI (avoid locally stored packages used in dev)
         run: |
