@@ -289,7 +289,7 @@ jobs:
 
       - name: Set up Node for shared branch repair
         if: success() && inputs.dry-run == '' && hashFiles('pnpm-lock.yaml') != ''
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '24.18.0'
 
