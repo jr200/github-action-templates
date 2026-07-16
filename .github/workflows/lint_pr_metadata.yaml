@@ -74,9 +74,9 @@ jobs:
           # Cap PR body length. Long-form context belongs in the Linear
           # ticket, not the PR. MAX_PR_BODY_WORDS overrides via org var.
           # Renovate PR bodies embed upstream release notes and legitimately
-          # exceed the cap; skip only for renovate[bot].
-          if [ "${PR_AUTHOR:-}" = "renovate[bot]" ]; then
-            echo "PR body length: skipped (renovate[bot])"
+          # exceed the cap. Self-hosted Renovate may use an App bot instead.
+          if [[ "${PR_BRANCH:-}" == renovate/* && "${PR_AUTHOR:-}" == *'[bot]' && "${PR_BODY:-}" == *'<!--renovate-debug:'* ]]; then
+            echo "PR body length: skipped (Renovate)"
           else
             max_words="${MAX_PR_BODY_WORDS:-500}"
             words=$(printf '%s' "${PR_BODY:-}" | wc -w | xargs)
