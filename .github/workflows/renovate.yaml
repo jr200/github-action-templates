@@ -135,6 +135,10 @@ jobs:
           RENOVATE_GITHUB_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Restore Renovate cache
+        # A manual run means "check upstream now". Restoring the datasource
+        # cache can hide a release published moments earlier until Renovate's
+        # soft TTL expires. Scheduled runs retain the cache for efficiency.
+        if: github.event_name != 'workflow_dispatch'
         uses: actions/cache@v6
         with:
           path: .renovate-out/cache
