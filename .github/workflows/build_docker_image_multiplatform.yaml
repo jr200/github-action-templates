@@ -247,8 +247,9 @@ jobs:
           file: ${{ steps.detect-dockerfile.outputs.dockerfile }}
           context: ${{ inputs.context }}
           provenance: false
-          cache-from: type=gha,scope=${{ inputs.tag }}-${{ matrix.platform }}
-          cache-to: type=gha,scope=${{ inputs.tag }}-${{ matrix.platform }},mode=max
+          # Keep the cache across release tags, but separate monorepo images and CPU architectures.
+          cache-from: type=gha,scope=${{ inputs.image_name }}-${{ matrix.platform }}
+          cache-to: type=gha,scope=${{ inputs.image_name }}-${{ matrix.platform }},mode=min
           build-args: |
             BUILD_OS=${{ matrix.os }}
             BUILD_ARCH=${{ matrix.architecture }}
