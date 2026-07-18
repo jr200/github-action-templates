@@ -10,6 +10,8 @@ trap 'rm -rf "$TMPDIR"' EXIT
 grep -q "DOCKER_IMAGE_PLATFORMS" "$caller"
 grep -q "DOCKER_IMAGE_PLATFORMS" "$reusable"
 grep -q "docker_image_platforms" "$reusable"
+grep -q 'build-args: \${{ github.event.inputs.build-args' "$caller"
+grep -q '\${{ inputs.build-args }}' "$reusable"
 grep -q 'cache-from: type=gha,scope=${{ inputs.image_name }}-${{ matrix.platform }}' "$reusable"
 grep -q 'cache-to: type=gha,scope=${{ inputs.image_name }}-${{ matrix.platform }},mode=min' "$reusable"
 if grep -q 'scope=${{ inputs.tag }}-' "$reusable"; then

@@ -46,6 +46,11 @@ on:
         required: false
         type: string
         default: ''
+      build-args:
+        description: 'Optional newline-delimited Docker build arguments.'
+        required: false
+        type: string
+        default: ''
     secrets:
       registry_username:
         required: true
@@ -253,6 +258,7 @@ jobs:
           build-args: |
             BUILD_OS=${{ matrix.os }}
             BUILD_ARCH=${{ matrix.architecture }}
+            ${{ inputs.build-args }}
           secret-files: |
             netrc=/tmp/.netrc
           secrets: |
