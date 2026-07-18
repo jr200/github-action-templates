@@ -71,6 +71,12 @@ if [[ "$shared_ref_uv_lock_count" != "0" ]]; then
   exit 1
 fi
 
+allowed_refresh_count=$(grep -F -c 'RENOVATE_ALLOWED_COMMANDS: '\''^(?:uv lock(?: --refresh)?|' "$workflow" || true)
+if [[ "$allowed_refresh_count" != "2" ]]; then
+  echo "FAIL: both Renovate passes must allow uv lock --refresh" >&2
+  exit 1
+fi
+
 internal_minimum_age_rule_count=$(jq '
   [
     .packageRules[]?
