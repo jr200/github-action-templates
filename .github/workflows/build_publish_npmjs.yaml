@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: ~
+      preview-id:
+        description: "Publish an immutable prerelease using this identifier (for example, a PR number)"
+        required: false
+        type: string
+        default: ''
       node-version:
         description: "node version"
         required: false
@@ -45,6 +50,21 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: ${{ inputs.node-version }}
+
+      - name: Set immutable preview version
+        if: inputs.preview-id != ''
+        env:
+          PREVIEW_ID: ${{ inputs.preview-id }}
+        run: |
+          if ! [[ "$PREVIEW_ID" =~ ^[0-9A-Za-z-]+$ ]]; then
+            echo "::error::preview-id may contain only letters, numbers, and hyphens"
+            exit 1
+          fi
+          BASE_VERSION=$(node -p "require('./package.json').version.split('-')[0]")
+          PREVIEW_VERSION="${BASE_VERSION}-pr.${PREVIEW_ID}.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}"
+          npm version "$PREVIEW_VERSION" --no-git-tag-version
+          echo "Publishing preview version: $PREVIEW_VERSION"
+          echo "### npm preview: \`$PREVIEW_VERSION\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install pnpm
         run: |
@@ -148,8 +168,14 @@ jobs:
 
       - name: build publish command
         id: build-command
+        env:
+          PREVIEW_ID: ${{ inputs.preview-id }}
         run: |
           BASE_CMD="npm publish --access public"
+
+          if [ -n "$PREVIEW_ID" ]; then
+            BASE_CMD="$BASE_CMD --tag preview"
+          fi
           
           if [ "${{ inputs.pnpm-publish-args }}" != "null" ] && [ "${{ inputs.pnpm-publish-args }}" != "" ]; then
             PUBLISH_CMD="$BASE_CMD ${{ inputs.pnpm-publish-args }}"
