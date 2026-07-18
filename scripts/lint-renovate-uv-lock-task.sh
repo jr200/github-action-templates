@@ -29,7 +29,7 @@ fi
 rule_count=$(jq '
   [
     .packageRules[]?
-    | select((.postUpgradeTasks.commands // []) == ["uv lock"])
+    | select((.postUpgradeTasks.commands // []) == ["uv lock --refresh"])
     | select((.postUpgradeTasks.installTools // {}) == {"python": {}, "uv": {}})
     | select((.postUpgradeTasks.fileFilters // []) == ["uv.lock"])
     | select((.matchManagers // []) | index("pep621"))
@@ -46,7 +46,7 @@ fi
 file_scoped_count=$(jq '
   [
     .packageRules[]?
-    | select((.postUpgradeTasks.commands // []) == ["uv lock"])
+    | select((.postUpgradeTasks.commands // []) == ["uv lock --refresh"])
     | select(has("matchFileNames"))
   ]
   | length
@@ -60,7 +60,7 @@ fi
 shared_ref_uv_lock_count=$(jq '
   [
     .packageRules[]?
-    | select((.postUpgradeTasks.commands // []) == ["uv lock"])
+    | select((.postUpgradeTasks.commands // []) == ["uv lock --refresh"])
     | select(((.matchPackageNames // []) | index("!jr200-labs/github-action-templates")) | not)
   ]
   | length
