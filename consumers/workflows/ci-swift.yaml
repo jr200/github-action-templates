@@ -5,6 +5,16 @@ name: ci-swift
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner pool
+        required: false
+        type: choice
+        default: configured
+        options:
+          - configured
+          - self-hosted
+          - github-hosted
 
 permissions:
   contents: read
@@ -14,4 +24,4 @@ jobs:
   ci:
     uses: jr200-labs/github-action-templates/.github/workflows/ci_swift.yaml@master
     with:
-      runner: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].macos }}
+      runner: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.runner == 'self-hosted' && 'self-hosted' || github.event_name == 'workflow_dispatch' && github.event.inputs.runner == 'github-hosted' && 'macos-latest' || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].macos }}

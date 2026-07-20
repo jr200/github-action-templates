@@ -17,10 +17,15 @@ on:
         required: false
         type: string
         default: .github/workflows
+      runner:
+        description: 'Runner label (e.g. ubuntu-latest or self-hosted)'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   lint-no-auto-merge:
-    runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
     steps:
       - name: Checkout caller repo
         uses: actions/checkout@v7
