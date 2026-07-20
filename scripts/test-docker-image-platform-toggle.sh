@@ -12,8 +12,9 @@ grep -q "DOCKER_IMAGE_PLATFORMS" "$reusable"
 grep -q "docker_image_platforms" "$reusable"
 grep -q 'build-args: \${{ github.event.inputs.build-args' "$caller"
 grep -q '\${{ inputs.build-args }}' "$reusable"
+grep -q 'enable-gha-cache-export:' "$reusable"
 grep -q 'cache-from: type=gha,scope=${{ inputs.image_name }}-${{ matrix.platform }}' "$reusable"
-grep -q 'cache-to: type=gha,scope=${{ inputs.image_name }}-${{ matrix.platform }},mode=min' "$reusable"
+grep -q "cache-to: \${{ inputs.enable-gha-cache-export && format('type=gha,scope={0}-{1},mode=min', inputs.image_name, matrix.platform) || '' }}" "$reusable"
 if grep -q 'scope=${{ inputs.tag }}-' "$reusable"; then
     echo "docker image cache must survive release tags" >&2
     exit 1
