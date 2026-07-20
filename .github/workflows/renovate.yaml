@@ -82,6 +82,11 @@ on:
         required: false
         type: string
         default: ''
+      repair-branches:
+        description: Run post-Renovate branch repair helpers
+        required: false
+        type: boolean
+        default: true
     secrets:
       # The App private key is declared as an explicit named secret input
       # because GitHub Actions has a quirk: variables inherited via
@@ -266,7 +271,7 @@ jobs:
           RENOVATE_CONFIG_FILE: ${{ inputs.config-file }}
 
       - name: Checkout shared repair scripts
-        if: success() && inputs.dry-run == ''
+        if: success() && inputs.dry-run == '' && inputs.repair-branches
         uses: actions/checkout@v7
         with:
           repository: jr200-labs/github-action-templates
@@ -275,36 +280,36 @@ jobs:
           token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Set up uv for Python branch repair
-        if: success() && inputs.dry-run == '' && hashFiles('pyproject.toml') != ''
+        if: success() && inputs.dry-run == '' && inputs.repair-branches && hashFiles('pyproject.toml') != ''
         uses: astral-sh/setup-uv@v8.3.2
 
       - name: Repair stale uv.lock on Renovate Python branches
-        if: success() && inputs.dry-run == '' && hashFiles('pyproject.toml') != ''
+        if: success() && inputs.dry-run == '' && inputs.repair-branches && hashFiles('pyproject.toml') != ''
         shell: bash
         run: ./_gha_templates/scripts/repair-renovate-uv-lock-branches.sh
         env:
           RENOVATE_REPAIR_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Set up pnpm for shared branch repair
-        if: success() && inputs.dry-run == '' && hashFiles('pnpm-lock.yaml') != ''
+        if: success() && inputs.dry-run == '' && inputs.repair-branches && hashFiles('pnpm-lock.yaml') != ''
         uses: pnpm/action-setup@v6
         with:
           run_install: false
 
       - name: Set up Node for shared branch repair
-        if: success() && inputs.dry-run == '' && hashFiles('pnpm-lock.yaml') != ''
+        if: success() && inputs.dry-run == '' && inputs.repair-branches && hashFiles('pnpm-lock.yaml') != ''
         uses: actions/setup-node@v7
         with:
           node-version: '24.18.0'
 
       - name: Install Cocogitto for shared branch repair
-        if: success() && inputs.dry-run == ''
+        if: success() && inputs.dry-run == '' && inputs.repair-branches
         uses: cocogitto/cocogitto-action@v4.2.0
         with:
           install-only: true
 
       - name: Repair generated shared workflow drift on Renovate branches
-        if: success() && inputs.dry-run == ''
+        if: success() && inputs.dry-run == '' && inputs.repair-branches
         shell: bash
         run: ./_gha_templates/scripts/repair-renovate-shared-workflow-branches.sh
         env:

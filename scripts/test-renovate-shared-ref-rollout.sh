@@ -94,7 +94,7 @@ if [ -z "$uv_setup_line" ] || [ -z "$uv_repair_line" ] || [ "$uv_setup_line" -ge
     exit 1
 fi
 if ! sed -n "$((uv_setup_line - 2)),$((uv_setup_line + 2))p" "$renovate_workflow" \
-    | grep -q "inputs.dry-run == '' && hashFiles('pyproject.toml') != ''"; then
+    | grep -q "inputs.dry-run == '' && inputs.repair-branches && hashFiles('pyproject.toml') != ''"; then
     echo "renovate workflow must only install uv for Python repair runs" >&2
     exit 1
 fi
