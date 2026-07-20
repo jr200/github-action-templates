@@ -113,6 +113,44 @@ if [[ "$private_git_rule_count" != "1" ]]; then
   exit 1
 fi
 
+branch_digest_manager_count=$(jq '
+  [
+    .customManagers[]?
+    | select(.customType == "regex")
+    | select(.datasourceTemplate == "git-refs")
+    | select((.managerFilePatterns // []) == ["/(^|/)uv\\.lock$/"])
+    | select((.matchStrings // []) | length == 1)
+    | select(.matchStrings[0] | contains("(?<currentValue>master|main)"))
+    | select(.matchStrings[0] | contains("(?<currentDigest>[0-9a-f]{40})"))
+    | select(.matchStrings[0] | contains("(?<packageName>https://github"))
+  ]
+  | length
+' "$file")
+
+if [[ "$branch_digest_manager_count" != "1" ]]; then
+  echo "FAIL: expected exactly one git-refs custom manager for master/main digests in uv.lock" >&2
+  exit 1
+fi
+
+branch_digest_pattern=$(jq -r '
+  .customManagers[]
+  | select(.datasourceTemplate == "git-refs")
+  | .matchStrings[0]
+' "$file")
+
+BRANCH_DIGEST_PATTERN="$branch_digest_pattern" node <<'NODE'
+const pattern = new RegExp(process.env.BRANCH_DIGEST_PATTERN);
+const digest = "0123456789abcdef0123456789abcdef01234567";
+const branch = `name = "demo-package"\nversion = "1.2.3"\nsource = { git = "https://github.com/example/demo-package.git?rev=master#${digest}" }`;
+const match = pattern.exec(branch);
+if (!match || match.groups.depName !== "demo-package" || match.groups.currentValue !== "master" || match.groups.currentDigest !== digest) {
+  throw new Error("git branch uv.lock fixture was not extracted correctly");
+}
+if (pattern.test(branch.replace("rev=master", "rev=v1.2.3"))) {
+  throw new Error("git tag uv.lock fixture must not match the branch digest manager");
+}
+NODE
+
 uv_setup_line="$(grep -n 'uses: astral-sh/setup-uv@' "$workflow" | head -n1 | cut -d: -f1 || true)"
 uv_repair_line="$(grep -n 'repair-renovate-uv-lock-branches.sh' "$workflow" | head -n1 | cut -d: -f1 || true)"
 if [[ -z "$uv_setup_line" || -z "$uv_repair_line" || "$uv_setup_line" -ge "$uv_repair_line" ]]; then
@@ -121,7 +159,7 @@ if [[ -z "$uv_setup_line" || -z "$uv_repair_line" || "$uv_setup_line" -ge "$uv_r
 fi
 
 if ! sed -n "$((uv_setup_line - 2)),$((uv_setup_line + 2))p" "$workflow" \
-  | grep -q "inputs.dry-run == '' && hashFiles('pyproject.toml') != ''"; then
+  | grep -q "inputs.dry-run == '' && inputs.repair-branches && hashFiles('pyproject.toml') != ''"; then
   echo "FAIL: Renovate workflow must only run setup-uv for the post-Renovate Python repair path" >&2
   exit 1
 fi

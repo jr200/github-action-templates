@@ -157,6 +157,15 @@
     },
     {
       "customType": "regex",
+      "description": "Refresh uv.lock digests for Python dependencies pinned to a GitHub master/main branch. The git-refs datasource detects branch-head changes; the shared uv post-upgrade task then refreshes package metadata in the same PR.",
+      "managerFilePatterns": ["/(^|/)uv\\.lock$/"],
+      "matchStrings": [
+        "name = \\\"(?<depName>[a-zA-Z0-9_.-]+)\\\"\\nversion = \\\"[^\\\"]+\\\"\\nsource = \\{ git = \\\"(?<packageName>https://github\\.com/[^?\\\"]+\\.git)\\?rev=(?<currentValue>master|main)#(?<currentDigest>[0-9a-f]{40})\\\" \\}"
+      ],
+      "datasourceTemplate": "git-refs"
+    },
+    {
+      "customType": "regex",
       "description": "Bump container image tags in IaC Helm values.yaml — `tag: vX.Y.Z` under `repository: ghcr.io/<org>/<image>`. Uses github-tags (not docker) because GHCR has no automation surface for cross-repo workflow tokens — the REST API can't grant per-package Manage Actions access, and visibility flips don't help bot tokens. github-tags reads via the App's broad contents:read on the source repo; works as long as the producer's release flow cuts a matching git tag (every consumer-org release-please flow does).",
       "managerFilePatterns": [
         "/services/.*/env/.*/.*values\\.yaml$/"
