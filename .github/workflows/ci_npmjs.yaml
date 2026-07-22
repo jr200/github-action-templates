@@ -12,12 +12,12 @@ on:
         description: "node version"
         required: false
         type: string
-        default: "22"
+        default: ""
       pnpm-version:
         description: "pnpm version"
         required: false
         type: string
-        default: "10"
+        default: ""
       run-integration:
         description: "Whether to run the integration test job (pnpm test:integration)"
         required: false
@@ -85,14 +85,28 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
 
+      - name: Resolve toolchain
+        id: toolchain
+        env:
+          INPUT_NODE_VERSION: ${{ inputs.node-version }}
+          INPUT_PNPM_VERSION: ${{ inputs.pnpm-version }}
+        run: |
+          node_version="$INPUT_NODE_VERSION"
+          if [ -z "$node_version" ] && [ -f .node-version ]; then node_version="$(head -n 1 .node-version)"; fi
+          pnpm_version="$INPUT_PNPM_VERSION"
+          if [ -z "$pnpm_version" ] && [ -f package.json ]; then pnpm_version="$(node -p \"(require('./package.json').packageManager || '').replace(/^pnpm@/, '')\")"; fi
+          echo "node-version=${node_version:-22}" >> "$GITHUB_OUTPUT"
+          echo "pnpm-version=${pnpm_version:-10}" >> "$GITHUB_OUTPUT"
+
       - name: Install pnpm
         uses: pnpm/action-setup@v6
-        # Version read from package.json "packageManager" field.
+        with:
+          version: ${{ steps.toolchain.outputs.pnpm-version }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: ${{ steps.toolchain.outputs.node-version }}
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -201,14 +215,28 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
 
+      - name: Resolve toolchain
+        id: toolchain
+        env:
+          INPUT_NODE_VERSION: ${{ inputs.node-version }}
+          INPUT_PNPM_VERSION: ${{ inputs.pnpm-version }}
+        run: |
+          node_version="$INPUT_NODE_VERSION"
+          if [ -z "$node_version" ] && [ -f .node-version ]; then node_version="$(head -n 1 .node-version)"; fi
+          pnpm_version="$INPUT_PNPM_VERSION"
+          if [ -z "$pnpm_version" ] && [ -f package.json ]; then pnpm_version="$(node -p \"(require('./package.json').packageManager || '').replace(/^pnpm@/, '')\")"; fi
+          echo "node-version=${node_version:-22}" >> "$GITHUB_OUTPUT"
+          echo "pnpm-version=${pnpm_version:-10}" >> "$GITHUB_OUTPUT"
+
       - name: Install pnpm
         uses: pnpm/action-setup@v6
-        # Version read from package.json "packageManager" field.
+        with:
+          version: ${{ steps.toolchain.outputs.pnpm-version }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: ${{ steps.toolchain.outputs.node-version }}
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -237,14 +265,28 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
 
+      - name: Resolve toolchain
+        id: toolchain
+        env:
+          INPUT_NODE_VERSION: ${{ inputs.node-version }}
+          INPUT_PNPM_VERSION: ${{ inputs.pnpm-version }}
+        run: |
+          node_version="$INPUT_NODE_VERSION"
+          if [ -z "$node_version" ] && [ -f .node-version ]; then node_version="$(head -n 1 .node-version)"; fi
+          pnpm_version="$INPUT_PNPM_VERSION"
+          if [ -z "$pnpm_version" ] && [ -f package.json ]; then pnpm_version="$(node -p \"(require('./package.json').packageManager || '').replace(/^pnpm@/, '')\")"; fi
+          echo "node-version=${node_version:-22}" >> "$GITHUB_OUTPUT"
+          echo "pnpm-version=${pnpm_version:-10}" >> "$GITHUB_OUTPUT"
+
       - name: Install pnpm
         uses: pnpm/action-setup@v6
-        # Version read from package.json "packageManager" field.
+        with:
+          version: ${{ steps.toolchain.outputs.pnpm-version }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: ${{ steps.toolchain.outputs.node-version }}
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
