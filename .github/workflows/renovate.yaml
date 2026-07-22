@@ -171,6 +171,7 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
           renovate-image: ${{ inputs.renovate-image || 'ghcr.io/renovatebot/renovate' }}
+          renovate-version: 43.275.0
           # Use host networking so the Renovate container shares the
           # runner pod's network. Dind's default bridge network has
           # routing issues that cause ETIMEDOUT on api.github.com.
@@ -258,6 +259,7 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
           renovate-image: ${{ inputs.renovate-image || 'ghcr.io/renovatebot/renovate' }}
+          renovate-version: 43.275.0
           docker-network: host
           docker-volumes: |
             ${{ github.workspace }}/.renovate-out:/out
