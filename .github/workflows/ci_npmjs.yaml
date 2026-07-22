@@ -94,7 +94,7 @@ jobs:
           node_version="$INPUT_NODE_VERSION"
           if [ -z "$node_version" ] && [ -f .node-version ]; then node_version="$(head -n 1 .node-version)"; fi
           pnpm_version="$INPUT_PNPM_VERSION"
-          if [ -z "$pnpm_version" ] && [ -f package.json ]; then pnpm_version="$(node -p \"(require('./package.json').packageManager || '').replace(/^pnpm@/, '')\")"; fi
+          if [ -z "$pnpm_version" ] && [ -f package.json ]; then pnpm_version="$(node -p "(require('./package.json').packageManager || '').replace(/^pnpm@/, '')")"; fi
           echo "node-version=${node_version:-22}" >> "$GITHUB_OUTPUT"
           echo "pnpm-version=${pnpm_version:-10}" >> "$GITHUB_OUTPUT"
 
@@ -224,7 +224,7 @@ jobs:
           node_version="$INPUT_NODE_VERSION"
           if [ -z "$node_version" ] && [ -f .node-version ]; then node_version="$(head -n 1 .node-version)"; fi
           pnpm_version="$INPUT_PNPM_VERSION"
-          if [ -z "$pnpm_version" ] && [ -f package.json ]; then pnpm_version="$(node -p \"(require('./package.json').packageManager || '').replace(/^pnpm@/, '')\")"; fi
+          if [ -z "$pnpm_version" ] && [ -f package.json ]; then pnpm_version="$(node -p "(require('./package.json').packageManager || '').replace(/^pnpm@/, '')")"; fi
           echo "node-version=${node_version:-22}" >> "$GITHUB_OUTPUT"
           echo "pnpm-version=${pnpm_version:-10}" >> "$GITHUB_OUTPUT"
 
@@ -274,7 +274,7 @@ jobs:
           node_version="$INPUT_NODE_VERSION"
           if [ -z "$node_version" ] && [ -f .node-version ]; then node_version="$(head -n 1 .node-version)"; fi
           pnpm_version="$INPUT_PNPM_VERSION"
-          if [ -z "$pnpm_version" ] && [ -f package.json ]; then pnpm_version="$(node -p \"(require('./package.json').packageManager || '').replace(/^pnpm@/, '')\")"; fi
+          if [ -z "$pnpm_version" ] && [ -f package.json ]; then pnpm_version="$(node -p "(require('./package.json').packageManager || '').replace(/^pnpm@/, '')")"; fi
           echo "node-version=${node_version:-22}" >> "$GITHUB_OUTPUT"
           echo "pnpm-version=${pnpm_version:-10}" >> "$GITHUB_OUTPUT"
 
