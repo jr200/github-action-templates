@@ -67,17 +67,23 @@ jobs:
             fi
           }
 
+          # Renovate PR bodies embed upstream release notes. Self-hosted
+          # Renovate may use an App bot instead.
+          if [[ "${PR_BRANCH:-}" == renovate/* && "${PR_AUTHOR:-}" == *'[bot]' && "${PR_BODY:-}" == *'<!--renovate-debug:'* ]]; then
+            is_renovate=true
+          else
+            is_renovate=false
+          fi
+
           scan "branch name" "${PR_BRANCH:-}"
           scan "PR title"    "${PR_TITLE:-}"
-          scan "PR body"     "${PR_BODY:-}"
-
-          # Cap PR body length. Long-form context belongs in the Linear
-          # ticket, not the PR. MAX_PR_BODY_WORDS overrides via org var.
-          # Renovate PR bodies embed upstream release notes and legitimately
-          # exceed the cap. Self-hosted Renovate may use an App bot instead.
-          if [[ "${PR_BRANCH:-}" == renovate/* && "${PR_AUTHOR:-}" == *'[bot]' && "${PR_BODY:-}" == *'<!--renovate-debug:'* ]]; then
-            echo "PR body length: skipped (Renovate)"
+          if "$is_renovate"; then
+            echo "PR body checks: skipped (Renovate)"
           else
+            scan "PR body" "${PR_BODY:-}"
+
+            # Cap PR body length. Long-form context belongs in the Linear
+            # ticket, not the PR. MAX_PR_BODY_WORDS overrides via org var.
             max_words="${MAX_PR_BODY_WORDS:-500}"
             words=$(printf '%s' "${PR_BODY:-}" | wc -w | xargs)
             if [ "$words" -gt "$max_words" ]; then
