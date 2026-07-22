@@ -24,10 +24,10 @@ on:
         type: string
         default: ''
       node-version:
-        description: "node version"
+        description: "Node.js version; defaults to .node-version, then 22"
         required: false
         type: string
-        default: '22'
+        default: ''
       runner:
         description: 'Runner label (e.g. ubuntu-latest or self-hosted)'
         required: false
@@ -37,7 +37,7 @@ on:
         description: 'Keep pnpm-workspace.yaml while installing and building a monorepo'
         required: false
         type: boolean
-        default: false
+        default: true
     secrets:
       npmjs_api_token:
         required: true
@@ -51,10 +51,21 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
 
+      - name: Resolve Node.js version
+        id: node-version
+        env:
+          INPUT_NODE_VERSION: ${{ inputs.node-version }}
+        run: |
+          version="$INPUT_NODE_VERSION"
+          if [ -z "$version" ] && [ -f .node-version ]; then
+            version="$(head -n 1 .node-version)"
+          fi
+          echo "version=${version:-22}" >> "$GITHUB_OUTPUT"
+
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: ${{ steps.node-version.outputs.version }}
 
       - name: Set immutable preview version
         if: inputs.preview-id != ''
