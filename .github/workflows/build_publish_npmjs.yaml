@@ -107,9 +107,6 @@ jobs:
       - run: pnpm run lint
         env:
           PNPM_CONFIG_MINIMUM_RELEASE_AGE: "0"
-      - run: pnpm run prettier --write
-        env:
-          PNPM_CONFIG_MINIMUM_RELEASE_AGE: "0"
 
       - name: run tests (optionally configured)
         if: inputs.pnpm-run-test == 'true'
