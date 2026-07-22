@@ -37,6 +37,16 @@ if ! grep -q 'permission-workflows: write' "$workflow"; then
   exit 1
 fi
 
+if ! grep -q 'permission-statuses: write' "$workflow"; then
+  echo "lint-renovate-workflow-token: app token must request statuses:write" >&2
+  exit 1
+fi
+
+if ! grep -q 'permission-vulnerability-alerts: read' "$workflow"; then
+  echo "lint-renovate-workflow-token: app token must request vulnerability-alerts:read" >&2
+  exit 1
+fi
+
 mint_line="$(grep -n 'name: Mint App installation token' "$workflow" | head -n1 | cut -d: -f1 || true)"
 checkout_line="$(grep -n 'name: Checkout$' "$workflow" | head -n1 | cut -d: -f1 || true)"
 checkout_token_line="$(grep -n 'token: \${{ steps.app-token.outputs.token }}' "$workflow" | head -n1 | cut -d: -f1 || true)"
