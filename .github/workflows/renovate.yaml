@@ -87,6 +87,11 @@ on:
         required: false
         type: boolean
         default: true
+      renovate-image:
+        description: Optional Renovate image reference
+        required: false
+        type: string
+        default: ''
     secrets:
       # The App private key is declared as an explicit named secret input
       # because GitHub Actions has a quirk: variables inherited via
@@ -165,6 +170,7 @@ jobs:
         uses: renovatebot/github-action@v46.1.20
         with:
           token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          renovate-image: ${{ inputs.renovate-image || 'ghcr.io/renovatebot/renovate' }}
           # Use host networking so the Renovate container shares the
           # runner pod's network. Dind's default bridge network has
           # routing issues that cause ETIMEDOUT on api.github.com.
@@ -251,6 +257,7 @@ jobs:
         uses: renovatebot/github-action@v46.1.20
         with:
           token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          renovate-image: ${{ inputs.renovate-image || 'ghcr.io/renovatebot/renovate' }}
           docker-network: host
           docker-volumes: |
             ${{ github.workspace }}/.renovate-out:/out
