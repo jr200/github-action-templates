@@ -186,7 +186,7 @@ jobs:
         env:
           PREVIEW_ID: ${{ inputs.preview-id }}
         run: |
-          BASE_CMD="pnpm publish --access public"
+          BASE_CMD="pnpm publish --access public --no-git-checks"
 
           if [ -n "$PREVIEW_ID" ]; then
             BASE_CMD="$BASE_CMD --tag preview"
