@@ -28,7 +28,12 @@ while IFS= read -r remote_ref; do
 
   checked=$((checked + 1))
   git checkout -B "$branch" "$remote_ref"
-  pnpm install --lockfile-only
+  pnpm_version="$(node -p "(require('./package.json').packageManager || '').replace(/^pnpm@/, '')")"
+  if [[ -n "$pnpm_version" ]]; then
+    npx --yes "pnpm@${pnpm_version}" --pm-on-fail=ignore install --lockfile-only
+  else
+    pnpm install --lockfile-only
+  fi
 
   if git diff --quiet -- pnpm-lock.yaml; then
     git checkout --detach "$base_sha" >/dev/null 2>&1 || true
