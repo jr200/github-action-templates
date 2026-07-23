@@ -32,6 +32,11 @@ while IFS= read -r remote_ref; do
 
   git checkout -B "$branch" "$remote_ref"
   if git rebase -X theirs "$base_sha"; then
+    if [[ "${RENOVATE_REPAIR_LOCKFILES:-false}" == true ]] && git cat-file -e "${base_sha}:pnpm-lock.yaml" 2>/dev/null; then
+      git checkout "$base_sha" -- pnpm-lock.yaml
+      git add pnpm-lock.yaml
+      git commit --amend --no-edit
+    fi
     git push --force-with-lease origin "HEAD:${branch}"
     rebased=$((rebased + 1))
   else
