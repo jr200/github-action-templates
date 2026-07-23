@@ -87,6 +87,16 @@ on:
         required: false
         type: boolean
         default: true
+      repair-lockfiles:
+        description: Overwrite stale pnpm lockfiles on existing Renovate branches
+        required: false
+        type: boolean
+        default: false
+      rebase-branches:
+        description: Rebase Renovate branches that are behind the base branch
+        required: false
+        type: boolean
+        default: false
       renovate-image:
         description: Optional Renovate image reference
         required: false
@@ -214,6 +224,7 @@ jobs:
           RENOVATE_ALLOWED_COMMANDS: '^(?:uv lock(?: --refresh)?|\./\.renovate/[A-Za-z0-9_.-]+\.py|\./scripts/sync-shared)$'
           # Optional dry-run for debugging without creating branches/PRs.
           RENOVATE_DRY_RUN: ${{ inputs.dry-run }}
+          RENOVATE_REBASE_WHEN: ${{ inputs.rebase-branches && 'behind-base-branch' || '' }}
           # Normal Renovate lockfile maintenance must not enforce the
           # package-age policy. That belongs to check_pnpm_package_age.yaml.
           PNPM_CONFIG_MINIMUM_RELEASE_AGE: '0'
@@ -279,6 +290,7 @@ jobs:
           RENOVATE_REPORT_TYPE: 'file'
           RENOVATE_REPORT_PATH: /out/pass2.report.json
           RENOVATE_CONFIG_FILE: ${{ inputs.config-file }}
+          RENOVATE_REBASE_WHEN: ${{ inputs.rebase-branches && 'behind-base-branch' || '' }}
 
       - name: Checkout shared repair scripts
         if: success() && inputs.dry-run == '' && inputs.repair-branches
@@ -311,6 +323,13 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '24.18.0'
+
+      - name: Repair stale pnpm lockfiles on Renovate branches
+        if: success() && inputs.dry-run == '' && inputs.repair-lockfiles && hashFiles('pnpm-lock.yaml') != ''
+        shell: bash
+        run: ./_gha_templates/scripts/repair-renovate-pnpm-lock-branches.sh
+        env:
+          RENOVATE_REPAIR_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Install Cocogitto for shared branch repair
         if: success() && inputs.dry-run == '' && inputs.repair-branches

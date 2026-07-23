@@ -8,6 +8,22 @@ trap 'rm -rf "$TMPDIR"' EXIT
 config="$ROOT/default.json"
 report_linter="$ROOT/scripts/lint-renovate-report-problems.sh"
 renovate_workflow="$ROOT/.github/workflows/renovate.yaml"
+consumer_workflow="$ROOT/consumers/workflows/renovate.yaml"
+
+for input in repair-lockfiles rebase-branches; do
+    if ! grep -q "${input}:" "$renovate_workflow" || ! grep -q "${input}:" "$consumer_workflow"; then
+        echo "renovate repair controls must be exposed by both reusable and shared workflows" >&2
+        exit 1
+    fi
+done
+if [ "$(grep -c "RENOVATE_REBASE_WHEN: \${{ inputs.rebase-branches" "$renovate_workflow" || true)" -ne 2 ]; then
+    echo "rebase control must apply to both Renovate passes" >&2
+    exit 1
+fi
+if ! grep -q 'repair-renovate-pnpm-lock-branches.sh' "$renovate_workflow" || [ ! -x "$ROOT/scripts/repair-renovate-pnpm-lock-branches.sh" ]; then
+    echo "lockfile repair control must run the executable pnpm branch repair helper" >&2
+    exit 1
+fi
 
 if jq -e '
   .packageRules[]?
