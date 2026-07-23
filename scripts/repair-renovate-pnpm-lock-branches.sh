@@ -37,7 +37,11 @@ while IFS= read -r remote_ref; do
       cd "$tool_dir"
       npm install --no-save --ignore-scripts "pnpm@${pnpm_version}"
     )
-    "$tool_dir/node_modules/.bin/pnpm" --dir "$branch_dir" --pm-on-fail=ignore install --lockfile-only
+    if [[ "${pnpm_version%%.*}" -ge 11 ]]; then
+      "$tool_dir/node_modules/.bin/pnpm" --dir "$branch_dir" --pm-on-fail=ignore install --lockfile-only
+    else
+      "$tool_dir/node_modules/.bin/pnpm" --dir "$branch_dir" install --lockfile-only
+    fi
   else
     pnpm install --lockfile-only
   fi
