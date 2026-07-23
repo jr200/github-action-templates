@@ -30,9 +30,14 @@ while IFS= read -r remote_ref; do
 
   checked=$((checked + 1))
   git checkout -B "$branch" "$remote_ref"
+  branch_dir="$PWD"
   pnpm_version="$(node -p "(require('./package.json').packageManager || '').replace(/^pnpm@/, '')")"
   if [[ -n "$pnpm_version" ]]; then
-    npm --prefix "$tool_dir" exec --yes --package "pnpm@${pnpm_version}" -- pnpm --pm-on-fail=ignore install --lockfile-only
+    (
+      cd "$tool_dir"
+      npm install --no-save --ignore-scripts "pnpm@${pnpm_version}"
+    )
+    "$tool_dir/node_modules/.bin/pnpm" --dir "$branch_dir" --pm-on-fail=ignore install --lockfile-only
   else
     pnpm install --lockfile-only
   fi
