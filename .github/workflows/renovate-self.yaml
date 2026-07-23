@@ -41,6 +41,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      statuses: write
     with:
       log-level: ${{ inputs.log-level || 'info' }}
       # Translate the 'normal' sentinel back to empty so the reusable
