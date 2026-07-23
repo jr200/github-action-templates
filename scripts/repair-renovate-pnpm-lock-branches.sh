@@ -19,7 +19,9 @@ repaired=0
 
 while IFS= read -r remote_ref; do
   branch="${remote_ref#refs/remotes/origin/}"
-  changed_files="$(git diff --name-only "${base_sha}...${remote_ref}")"
+  # The checkout is shallow, so a merge-base may be unavailable after a
+  # branch rebase. A direct comparison is sufficient for this manual repair.
+  changed_files="$(git diff --name-only "$base_sha" "$remote_ref")"
   if ! grep -qE '(^|/)package\.json$' <<<"$changed_files" || grep -qx 'pnpm-lock.yaml' <<<"$changed_files"; then
     continue
   fi
