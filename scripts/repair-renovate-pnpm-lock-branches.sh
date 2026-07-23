@@ -16,6 +16,8 @@ git fetch --no-tags origin '+refs/heads/renovate/*:refs/remotes/origin/renovate/
 base_sha="$(git rev-parse "$base_ref")"
 checked=0
 repaired=0
+tool_dir="$(mktemp -d)"
+trap 'rm -rf "$tool_dir"' EXIT
 
 while IFS= read -r remote_ref; do
   branch="${remote_ref#refs/remotes/origin/}"
@@ -30,7 +32,7 @@ while IFS= read -r remote_ref; do
   git checkout -B "$branch" "$remote_ref"
   pnpm_version="$(node -p "(require('./package.json').packageManager || '').replace(/^pnpm@/, '')")"
   if [[ -n "$pnpm_version" ]]; then
-    npx --yes "pnpm@${pnpm_version}" --pm-on-fail=ignore install --lockfile-only
+    npm --prefix "$tool_dir" exec --yes --package "pnpm@${pnpm_version}" -- pnpm --pm-on-fail=ignore install --lockfile-only
   else
     pnpm install --lockfile-only
   fi
