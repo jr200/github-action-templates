@@ -116,11 +116,12 @@ if ! sed -n "$((uv_setup_line - 2)),$((uv_setup_line + 2))p" "$renovate_workflow
 fi
 
 node_setup_line=$(grep -n 'uses: actions/setup-node@' "$renovate_workflow" | tail -n1 | cut -d: -f1 || true)
+node_resolve_line=$(grep -n 'id: repair-node-version' "$renovate_workflow" | head -n1 | cut -d: -f1 || true)
 pnpm_setup_line=$(grep -n 'uses: pnpm/action-setup@' "$renovate_workflow" | tail -n1 | cut -d: -f1 || true)
 cog_setup_line=$(grep -n 'uses: cocogitto/cocogitto-action@' "$renovate_workflow" | head -n1 | cut -d: -f1 || true)
 repair_line=$(grep -n 'repair-renovate-shared-workflow-branches.sh' "$renovate_workflow" | head -n1 | cut -d: -f1 || true)
-if [ -z "$node_setup_line" ] || [ -z "$pnpm_setup_line" ] || [ -z "$cog_setup_line" ] || [ -z "$repair_line" ] \
-    || [ "$pnpm_setup_line" -ge "$node_setup_line" ] || [ "$node_setup_line" -ge "$cog_setup_line" ] || [ "$cog_setup_line" -ge "$repair_line" ]; then
+if [ -z "$node_setup_line" ] || [ -z "$node_resolve_line" ] || [ -z "$pnpm_setup_line" ] || [ -z "$cog_setup_line" ] || [ -z "$repair_line" ] \
+    || [ "$pnpm_setup_line" -ge "$node_resolve_line" ] || [ "$node_resolve_line" -ge "$node_setup_line" ] || [ "$node_setup_line" -ge "$cog_setup_line" ] || [ "$cog_setup_line" -ge "$repair_line" ]; then
     echo "renovate workflow must install pnpm, node, and cocogitto before repairing shared-ref branches" >&2
     exit 1
 fi

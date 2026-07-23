@@ -324,11 +324,21 @@ jobs:
         with:
           run_install: false
 
+      - name: Resolve Node version for shared branch repair
+        id: repair-node-version
+        if: success() && inputs.dry-run == '' && inputs.repair-branches && hashFiles('pnpm-lock.yaml') != ''
+        shell: bash
+        run: |
+          node_version=24.18.0
+          if [ -f .node-version ]; then node_version="$(head -n 1 .node-version)"; fi
+          if [ -f .nvmrc ]; then node_version="$(head -n 1 .nvmrc)"; fi
+          echo "version=${node_version}" >> "$GITHUB_OUTPUT"
+
       - name: Set up Node for shared branch repair
         if: success() && inputs.dry-run == '' && inputs.repair-branches && hashFiles('pnpm-lock.yaml') != ''
         uses: actions/setup-node@v7
         with:
-          node-version: '24.18.0'
+          node-version: ${{ steps.repair-node-version.outputs.version }}
 
       - name: Repair stale pnpm lockfiles on Renovate branches
         if: success() && inputs.dry-run == '' && inputs.repair-lockfiles && hashFiles('pnpm-lock.yaml') != ''
