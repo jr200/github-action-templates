@@ -109,6 +109,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      statuses: write
     steps:
       - name: Mint App installation token
         id: app-token
