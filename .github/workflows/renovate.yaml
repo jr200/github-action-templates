@@ -224,7 +224,6 @@ jobs:
           RENOVATE_ALLOWED_COMMANDS: '^(?:uv lock(?: --refresh)?|\./\.renovate/[A-Za-z0-9_.-]+\.py|\./scripts/sync-shared)$'
           # Optional dry-run for debugging without creating branches/PRs.
           RENOVATE_DRY_RUN: ${{ inputs.dry-run }}
-          RENOVATE_REBASE_WHEN: ${{ inputs.rebase-branches && 'behind-base-branch' || '' }}
           # Normal Renovate lockfile maintenance must not enforce the
           # package-age policy. That belongs to check_pnpm_package_age.yaml.
           PNPM_CONFIG_MINIMUM_RELEASE_AGE: '0'
@@ -290,7 +289,6 @@ jobs:
           RENOVATE_REPORT_TYPE: 'file'
           RENOVATE_REPORT_PATH: /out/pass2.report.json
           RENOVATE_CONFIG_FILE: ${{ inputs.config-file }}
-          RENOVATE_REBASE_WHEN: ${{ inputs.rebase-branches && 'behind-base-branch' || '' }}
 
       - name: Checkout shared repair scripts
         if: success() && inputs.dry-run == '' && inputs.repair-branches
@@ -300,6 +298,13 @@ jobs:
           ref: master
           path: _gha_templates
           token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+
+      - name: Force-rebase Renovate branches
+        if: success() && inputs.dry-run == '' && inputs.rebase-branches
+        shell: bash
+        run: ./_gha_templates/scripts/repair-renovate-rebase-branches.sh
+        env:
+          RENOVATE_REPAIR_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Set up uv for Python branch repair
         if: success() && inputs.dry-run == '' && inputs.repair-branches && hashFiles('pyproject.toml') != ''

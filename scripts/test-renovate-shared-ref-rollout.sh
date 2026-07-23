@@ -16,8 +16,8 @@ for input in repair-lockfiles rebase-branches; do
         exit 1
     fi
 done
-if [ "$(grep -c "RENOVATE_REBASE_WHEN: \${{ inputs.rebase-branches" "$renovate_workflow" || true)" -ne 2 ]; then
-    echo "rebase control must apply to both Renovate passes" >&2
+if ! grep -q 'repair-renovate-rebase-branches.sh' "$renovate_workflow" || [ ! -x "$ROOT/scripts/repair-renovate-rebase-branches.sh" ]; then
+    echo "rebase control must run the executable Renovate branch rebase helper" >&2
     exit 1
 fi
 if ! grep -q 'repair-renovate-pnpm-lock-branches.sh' "$renovate_workflow" || [ ! -x "$ROOT/scripts/repair-renovate-pnpm-lock-branches.sh" ]; then
