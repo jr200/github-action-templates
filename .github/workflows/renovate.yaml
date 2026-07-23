@@ -305,6 +305,7 @@ jobs:
         run: ./_gha_templates/scripts/repair-renovate-rebase-branches.sh
         env:
           RENOVATE_REPAIR_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          RENOVATE_REPAIR_LOCKFILES: ${{ inputs.repair-lockfiles }}
 
       - name: Set up uv for Python branch repair
         if: success() && inputs.dry-run == '' && inputs.repair-branches && hashFiles('pyproject.toml') != ''
