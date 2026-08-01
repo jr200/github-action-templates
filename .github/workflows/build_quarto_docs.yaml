@@ -50,6 +50,20 @@ jobs:
           path: ${{ inputs.site-path }}
           to: html
 
+      - name: Initialize GitHub Pages branch
+        env:
+          PAGES_BRANCH: gh-pages
+          GIT_AUTHOR_NAME: Quarto GHA Workflow Runner
+          GIT_AUTHOR_EMAIL: quarto-github-actions-publish@example.com
+          GIT_COMMITTER_NAME: Quarto GHA Workflow Runner
+          GIT_COMMITTER_EMAIL: quarto-github-actions-publish@example.com
+        run: |
+          if ! git ls-remote --exit-code --heads origin "refs/heads/${PAGES_BRANCH}" >/dev/null 2>&1; then
+            empty_tree="$(git hash-object -t tree /dev/null)"
+            commit="$(printf '%s\n' 'chore: initialize GitHub Pages' | git commit-tree "${empty_tree}")"
+            git push origin "${commit}:refs/heads/${PAGES_BRANCH}"
+          fi
+
       - name: Publish to GitHub Pages
         uses: quarto-dev/quarto-actions/publish@v2.2.0
         with:
