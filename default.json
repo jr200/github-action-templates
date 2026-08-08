@@ -29,6 +29,12 @@
       "groupSlug": "all-minor-patch"
     },
     {
+      "description": "Ignore boto3 patch releases because they are published near-daily; minor releases provide a lower-noise update cadence.",
+      "matchPackageNames": ["boto3"],
+      "matchUpdateTypes": ["patch"],
+      "enabled": false
+    },
+    {
       "description": "Force fix(deps) for non-major Renovate commits so release-please consumers actually cut a patch release on merge. The :semanticCommits preset emits chore(deps) by default, which release-please's standard config treats as no-op — every Renovate merge would land but no version tag would follow, blocking downstream Renovate-driven rollouts (JRL-37).",
       "matchUpdateTypes": ["minor", "patch", "pin", "digest", "lockFileMaintenance"],
       "semanticCommitType": "fix",

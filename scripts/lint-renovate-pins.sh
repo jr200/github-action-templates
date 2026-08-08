@@ -2,8 +2,9 @@
 # Lint packageRule pins in default.json to enforce periodic review.
 #
 # Policy:
-#   Any packageRule with `matchPackageNames` set AND `enabled: false`
-#   must include `review-by: YYYY-MM-DD` in its description. The date:
+#   Any packageRule with `matchPackageNames` set AND `enabled: false`, unless
+#   it is a permanent update-type policy, must include `review-by: YYYY-MM-DD`
+#   in its description. The date:
 #     * must parse as an ISO calendar date (YYYY-MM-DD)
 #     * must NOT be in the past (expired pin = fail; forces reconsider)
 #     * must NOT be more than 31 days in the future (no long pins)
@@ -12,10 +13,9 @@
 # is a bet that the upstream bug will be fixed or we'll revisit the
 # decision; the date is the commitment to actually revisit.
 #
-# Structural disables that only set `matchManagers` (e.g. disabling a
-# duplicate manager that collides with a custom regex manager) are NOT
-# pins and are exempt — they are permanent config choices, not version
-# decisions.
+# Structural disables without package names and update-type policies (e.g.
+# ignoring noisy patch releases) are NOT pins and are exempt — they are
+# permanent config choices, not version decisions.
 #
 # Usage:
 #   lint-renovate-pins.sh [<path-to-default.json>]
@@ -58,6 +58,7 @@ mapfile -t rows < <(jq -r '
   | to_entries[]
   | select(.value.enabled == false)
   | select((.value.matchPackageNames // []) | length > 0)
+  | select(((.value.matchUpdateTypes // []) | length) == 0)
   | [
       .key,
       ((.value.matchPackageNames // []) | join(",")),
