@@ -78,6 +78,13 @@ make_consumer_repo "$consumer_repo"
     ! grep -q '"@commitlint/config-conventional"' package.json
     ! grep -q '"husky"' package.json
     grep -q '"vitest": "3.2.4"' package.json
+    mv .github/workflows/ci.yaml .github/workflows/bespoke_ci.yaml
+    touch .github/workflows/unexpected.yaml
+    if STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check; then
+        echo "expected sync-shared --check to reject an unexpected workflow" >&2
+        exit 1
+    fi
+    rm .github/workflows/unexpected.yaml
     STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
 )
 
@@ -95,12 +102,13 @@ YAML
     test -f .github/workflows/ci-node-size-limit.yaml
     yq -e '.jobs.ci.with."run-size-limit" == true' .github/workflows/ci-node-size-limit.yaml >/dev/null
     ! yq -e '.jobs.commitlint' .github/workflows/ci-node-size-limit.yaml >/dev/null 2>&1
+    mv .github/workflows/ci.yaml .github/workflows/bespoke_ci.yaml
     STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
 )
 
 metadata_repo="$TMPDIR/metadata-consumer"
 make_consumer_repo "$metadata_repo"
-# Bad consumer input: a bespoke ci.yaml must not keep a duplicate
+# Bad consumer input: a repository-specific ci.yaml must not keep a duplicate
 # lint-pr-metadata job when the shared hygiene workflow owns it.
 cat > "$metadata_repo/.github/workflows/ci.yaml" <<'YAML'
 name: ci
@@ -121,6 +129,7 @@ YAML
     test -f .github/workflows/lint-pr-metadata.yaml
     test -f .github/workflows/ci.yaml
     ! grep -q 'lint_pr_metadata.yaml@master' .github/workflows/ci.yaml
+    mv .github/workflows/ci.yaml .github/workflows/bespoke_ci.yaml
     STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
 )
 
