@@ -123,8 +123,23 @@
       "skipArtifactsUpdate": true
     },
     {
-      "description": "Regenerate uv.lock with fresh package metadata whenever Renovate changes Python dependencies in pyproject.toml. Renovate's pep621/custom regex managers update the manifest but do not keep uv lockfiles in sync, and a just-published internal package may be absent from uv's cached index metadata.",
-      "matchManagers": ["pep621", "custom.regex"],
+      "description": "Regenerate uv.lock with fresh package metadata whenever Renovate's pep621 manager changes Python dependencies in pyproject.toml.",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": ["!jr200-labs/github-action-templates"],
+      "postUpgradeTasks": {
+        "commands": ["uv lock --refresh"],
+        "installTools": {
+          "python": {},
+          "uv": {}
+        },
+        "fileFilters": ["uv.lock"],
+        "executionMode": "branch"
+      }
+    },
+    {
+      "description": "Regenerate uv.lock when a Python-specific custom regex manager changes a dependency.",
+      "matchManagers": ["custom.regex"],
+      "matchDepTypes": ["python"],
       "matchPackageNames": ["!jr200-labs/github-action-templates"],
       "postUpgradeTasks": {
         "commands": ["uv lock --refresh"],
@@ -158,6 +173,7 @@
       "matchStrings": [
         "(?<depName>[a-zA-Z0-9_\\-]+)(?:\\[[^\\]]+\\])?\\s*@\\s*git\\+https://github\\.com/(?<packageName>[^/]+/[a-zA-Z0-9_\\-\\.]+?)(?:\\.git)?@(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
       ],
+      "depTypeTemplate": "python",
       "datasourceTemplate": "github-tags",
       "versioningTemplate": "semver"
     },
@@ -168,6 +184,7 @@
       "matchStrings": [
         "name = \\\"(?<depName>[a-zA-Z0-9_.-]+)\\\"\\nversion = \\\"[^\\\"]+\\\"\\nsource = \\{ git = \\\"(?<packageName>https://github\\.com/[^?\\\"]+\\.git)\\?rev=(?<currentValue>master|main)#(?<currentDigest>[0-9a-f]{40})\\\" \\}"
       ],
+      "depTypeTemplate": "python",
       "datasourceTemplate": "git-refs"
     },
     {
