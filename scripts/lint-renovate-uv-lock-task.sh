@@ -26,20 +26,48 @@ if ! jq -e . "$file" >/dev/null 2>&1; then
   exit 2
 fi
 
-rule_count=$(jq '
+pep621_rule_count=$(jq '
   [
     .packageRules[]?
     | select((.postUpgradeTasks.commands // []) == ["uv lock --refresh"])
     | select((.postUpgradeTasks.installTools // {}) == {"python": {}, "uv": {}})
     | select((.postUpgradeTasks.fileFilters // []) == ["uv.lock"])
     | select((.matchManagers // []) | index("pep621"))
-    | select((.matchManagers // []) | index("custom.regex"))
   ]
   | length
 ' "$file")
 
-if [[ "$rule_count" != "1" ]]; then
-  echo "FAIL: expected exactly one uv.lock postUpgradeTasks rule for pep621/custom.regex managers with installTools.python and installTools.uv; found ${rule_count}" >&2
+if [[ "$pep621_rule_count" != "1" ]]; then
+  echo "FAIL: expected exactly one uv.lock postUpgradeTasks rule for pep621 with installTools.python and installTools.uv; found ${pep621_rule_count}" >&2
+  exit 1
+fi
+
+python_custom_rule_count=$(jq '
+  [
+    .packageRules[]?
+    | select((.postUpgradeTasks.commands // []) == ["uv lock --refresh"])
+    | select((.matchManagers // []) == ["custom.regex"])
+    | select((.matchDepTypes // []) == ["python"])
+  ]
+  | length
+' "$file")
+
+if [[ "$python_custom_rule_count" != "1" ]]; then
+  echo "FAIL: expected exactly one uv.lock postUpgradeTasks rule scoped to Python custom-manager dependencies; found ${python_custom_rule_count}" >&2
+  exit 1
+fi
+
+python_custom_manager_count=$(jq '
+  [
+    .customManagers[]?
+    | select(.depTypeTemplate == "python")
+    | select((.managerFilePatterns // []) | any(test("pyproject|uv\\\\.lock")))
+  ]
+  | length
+' "$file")
+
+if [[ "$python_custom_manager_count" != "2" ]]; then
+  echo "FAIL: expected the pyproject.toml and uv.lock custom managers to tag dependencies as Python; found ${python_custom_manager_count}" >&2
   exit 1
 fi
 
