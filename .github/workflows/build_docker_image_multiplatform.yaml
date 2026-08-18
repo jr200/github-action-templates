@@ -95,6 +95,7 @@ jobs:
     runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
     outputs:
       matrix: ${{ steps.create-matrix.outputs.matrix }}
+      sanitized_image_name: ${{ steps.create-matrix.outputs.sanitized_image_name }}
     steps:
       - name: Determine Platforms
         id: create-matrix
@@ -149,6 +150,10 @@ jobs:
           echo "resolved platforms: $platforms_json"
           echo set-matrix: $result_matrix
           echo "matrix=$result_matrix" >> $GITHUB_OUTPUT
+          sanitized_image_name='${{ inputs.image_name }}'
+          sanitized_image_name="${sanitized_image_name//\//-}"
+          sanitized_image_name="${sanitized_image_name//:/-}"
+          echo "sanitized_image_name=${sanitized_image_name}" >> $GITHUB_OUTPUT
 
   build:
     name: Build ${{ matrix.platform }} Image
@@ -280,7 +285,7 @@ jobs:
       - name: Upload digest
         uses: actions/upload-artifact@v7
         with:
-          name: digests-${{ inputs.image_name }}-${{ env.PLATFORM_PAIR }}
+          name: digests-${{ needs.setup-matrix.outputs.sanitized_image_name }}-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -289,6 +294,7 @@ jobs:
     name: Merge platform specific Docker image into multi platform image
     runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
     needs:
+      - setup-matrix
       - build
 
     permissions:
@@ -300,7 +306,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: /tmp/digests
-          pattern: digests-${{ inputs.image_name }}-*
+          pattern: digests-${{ needs.setup-matrix.outputs.sanitized_image_name }}-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
