@@ -360,7 +360,7 @@ jobs:
           existing_sha=$(gh api \
             -H 'Accept: application/vnd.github+json' \
             "repos/${GITHUB_REPOSITORY}/git/ref/tags/${success_tag}" \
-            --jq '.object.sha' 2>/dev/null || true)
+            --jq '.object.sha' 2>/dev/null) || existing_sha=''
 
           if [ -n "$existing_sha" ]; then
             if [ "$existing_sha" = "$SOURCE_SHA" ]; then

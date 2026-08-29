@@ -19,6 +19,7 @@ grep -q 'cache-from: type=gha,scope=${{ inputs.image_name }}-${{ matrix.platform
 grep -q 'name: Publish image success tag' "$reusable"
 grep -q 'docker buildx imagetools inspect' "$reusable"
 grep -q 'success_tag="${image_name}-${IMAGE_TAG}"' "$reusable"
+grep -q "|| existing_sha=''" "$reusable"
 inspect_line=$(grep -n 'docker buildx imagetools inspect' "$reusable" | cut -d: -f1)
 success_tag_line=$(grep -n 'name: Publish image success tag' "$reusable" | cut -d: -f1)
 if [ "$success_tag_line" -le "$inspect_line" ]; then
@@ -80,3 +81,37 @@ if GITHUB_OUTPUT="$TMPDIR/invalid.out" \
     exit 1
 fi
 grep -q "unsupported docker image platform" /tmp/invalid-platform.stdout
+
+success_tag_script="$TMPDIR/publish-image-success-tag.sh"
+yq -r '.jobs.merge.steps[] | select(.name == "Publish image success tag").run' "$reusable" \
+    > "$success_tag_script"
+chmod +x "$success_tag_script"
+
+mkdir "$TMPDIR/bin"
+cat > "$TMPDIR/bin/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ " $* " == *" --method POST "* ]]; then
+    printf '%s\n' "$*" >> "$GH_CALLS"
+    exit 0
+fi
+
+printf '%s\n' '{"message":"Not Found","status":"404"}'
+exit 1
+EOF
+chmod +x "$TMPDIR/bin/gh"
+
+GH_CALLS="$TMPDIR/gh-calls" \
+PATH="$TMPDIR/bin:$PATH" \
+IMAGE_NAME=whengas/agent-runtime \
+IMAGE_TAG=v1.17.5 \
+SOURCE_SHA=a2b237a239a0e65c31149eff6dc8a21722c80cc1 \
+REGISTRY_IMAGE=ghcr.io/whengas/agent-runtime \
+GITHUB_REPOSITORY=whengas/agent-images \
+GH_TOKEN=test-token \
+    "$success_tag_script" >/dev/null
+
+grep -q -- '--method POST' "$TMPDIR/gh-calls"
+grep -q 'refs/tags/agent-runtime-v1.17.5' "$TMPDIR/gh-calls"
+grep -q 'sha=a2b237a239a0e65c31149eff6dc8a21722c80cc1' "$TMPDIR/gh-calls"
