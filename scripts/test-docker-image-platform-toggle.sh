@@ -11,10 +11,20 @@ grep -q "DOCKER_IMAGE_PLATFORMS" "$caller"
 grep -q "DOCKER_IMAGE_PLATFORMS" "$reusable"
 grep -q "docker_image_platforms" "$reusable"
 grep -q 'build-args: \${{ github.event.inputs.build-args' "$caller"
+grep -Fq 'source-sha: ${{ fromJson(needs.configure.outputs.context).sha' "$caller"
 grep -Fq 'context: ${{ matrix.context || '\''.'\'' }}' "$caller"
 grep -q '\${{ inputs.build-args }}' "$reusable"
 grep -q 'enable-gha-cache-export:' "$reusable"
 grep -q 'cache-from: type=gha,scope=${{ inputs.image_name }}-${{ matrix.platform }}' "$reusable"
+grep -q 'name: Publish image success tag' "$reusable"
+grep -q 'docker buildx imagetools inspect' "$reusable"
+grep -q 'success_tag="${image_name}-${IMAGE_TAG}"' "$reusable"
+inspect_line=$(grep -n 'docker buildx imagetools inspect' "$reusable" | cut -d: -f1)
+success_tag_line=$(grep -n 'name: Publish image success tag' "$reusable" | cut -d: -f1)
+if [ "$success_tag_line" -le "$inspect_line" ]; then
+    echo "image success tag must be published after manifest inspection" >&2
+    exit 1
+fi
 grep -q "cache-to: \${{ inputs.enable-gha-cache-export && format('type=gha,scope={0}-{1},mode=min', inputs.image_name, matrix.platform) || '' }}" "$reusable"
 if grep -q 'scope=${{ inputs.tag }}-' "$reusable"; then
     echo "docker image cache must survive release tags" >&2

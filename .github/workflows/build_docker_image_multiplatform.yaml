@@ -21,6 +21,11 @@ on:
         description: docker-image-tag
         required: true
         type: string
+      source-sha:
+        description: Commit SHA represented by a release image tag
+        required: false
+        type: string
+        default: ''
       platforms:
         description: platform-filter-json
         required: false
@@ -335,6 +340,43 @@ jobs:
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ inputs.tag }}
+
+      - name: Publish image success tag
+        if: startsWith(inputs.tag, 'v') && inputs.source-sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_TAG: ${{ inputs.tag }}
+          SOURCE_SHA: ${{ inputs.source-sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$IMAGE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::notice::Skipping success tag for non-release image tag $IMAGE_TAG"
+            exit 0
+          fi
+
+          image_name=${IMAGE_NAME##*/}
+          success_tag="${image_name}-${IMAGE_TAG}"
+          existing_sha=$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/git/ref/tags/${success_tag}" \
+            --jq '.object.sha' 2>/dev/null || true)
+
+          if [ -n "$existing_sha" ]; then
+            if [ "$existing_sha" = "$SOURCE_SHA" ]; then
+              echo "::notice::Success tag $success_tag already points to $SOURCE_SHA"
+              exit 0
+            fi
+            echo "::error::Success tag $success_tag already points to $existing_sha, not $SOURCE_SHA"
+            exit 1
+          fi
+
+          gh api --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f ref="refs/tags/${success_tag}" \
+            -f sha="$SOURCE_SHA"
+          echo "Published $success_tag at $SOURCE_SHA after verifying ${REGISTRY_IMAGE}:${IMAGE_TAG}"
 
 
       # - name: Repository Dispatch
