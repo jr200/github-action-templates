@@ -26,6 +26,11 @@ on:
         required: false
         type: string
         default: ''
+      success-tag-prefix:
+        description: 'Git tag prefix published after the image manifest succeeds. Defaults to the image name.'
+        required: false
+        type: string
+        default: ''
       platforms:
         description: platform-filter-json
         required: false
@@ -349,6 +354,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           IMAGE_TAG: ${{ inputs.tag }}
           SOURCE_SHA: ${{ inputs.source-sha }}
+          SUCCESS_TAG_PREFIX: ${{ inputs.success-tag-prefix }}
         run: |
           set -euo pipefail
 
@@ -358,7 +364,7 @@ jobs:
           fi
 
           image_name=${IMAGE_NAME##*/}
-          success_tag="${image_name}-${IMAGE_TAG}"
+          success_tag="${SUCCESS_TAG_PREFIX:-$image_name}-${IMAGE_TAG}"
           existing_sha=$(gh api \
             -H 'Accept: application/vnd.github+json' \
             "repos/${GITHUB_REPOSITORY}/git/ref/tags/${success_tag}" \

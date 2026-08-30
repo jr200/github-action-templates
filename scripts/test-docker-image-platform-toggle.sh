@@ -20,7 +20,7 @@ grep -q 'name: Publish image success tag' "$reusable"
 grep -q 'docker buildx imagetools inspect' "$reusable"
 grep -Fq 'name: digests-${{ needs.setup-matrix.outputs.sanitized_image_name }}--${{ env.PLATFORM_PAIR }}' "$reusable"
 grep -Fq 'pattern: digests-${{ needs.setup-matrix.outputs.sanitized_image_name }}--*' "$reusable"
-grep -q 'success_tag="${image_name}-${IMAGE_TAG}"' "$reusable"
+grep -q 'success_tag="${SUCCESS_TAG_PREFIX:-$image_name}-${IMAGE_TAG}"' "$reusable"
 grep -q "|| existing_sha=''" "$reusable"
 inspect_line=$(grep -n 'docker buildx imagetools inspect' "$reusable" | cut -d: -f1)
 success_tag_line=$(grep -n 'name: Publish image success tag' "$reusable" | cut -d: -f1)
@@ -127,8 +127,23 @@ SOURCE_SHA=a2b237a239a0e65c31149eff6dc8a21722c80cc1 \
 REGISTRY_IMAGE=ghcr.io/whengas/agent-runtime \
 GITHUB_REPOSITORY=whengas/agent-images \
 GH_TOKEN=test-token \
+SUCCESS_TAG_PREFIX= \
     "$success_tag_script" >/dev/null
 
 grep -q -- '--method POST' "$TMPDIR/gh-calls"
 grep -q 'refs/tags/agent-runtime-v1.17.5' "$TMPDIR/gh-calls"
 grep -q 'sha=a2b237a239a0e65c31149eff6dc8a21722c80cc1' "$TMPDIR/gh-calls"
+
+: > "$TMPDIR/gh-calls"
+GH_CALLS="$TMPDIR/gh-calls" \
+PATH="$TMPDIR/bin:$PATH" \
+IMAGE_NAME=whengas/padd-supervisor \
+IMAGE_TAG=v0.2.0 \
+SOURCE_SHA=b2b237a239a0e65c31149eff6dc8a21722c80cc2 \
+SUCCESS_TAG_PREFIX=padd-supervisor-image \
+REGISTRY_IMAGE=ghcr.io/whengas/padd-supervisor \
+GITHUB_REPOSITORY=whengas/padd \
+GH_TOKEN=test-token \
+    "$success_tag_script" >/dev/null
+
+grep -q 'refs/tags/padd-supervisor-image-v0.2.0' "$TMPDIR/gh-calls"
