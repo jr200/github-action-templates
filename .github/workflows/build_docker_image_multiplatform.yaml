@@ -290,7 +290,9 @@ jobs:
       - name: Upload digest
         uses: actions/upload-artifact@v7
         with:
-          name: digests-${{ needs.setup-matrix.outputs.sanitized_image_name }}-${{ env.PLATFORM_PAIR }}
+          # The double separator prevents a prefix image such as `org/padd`
+          # from matching artifacts for `org/padd-supervisor` in the same run.
+          name: digests-${{ needs.setup-matrix.outputs.sanitized_image_name }}--${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -311,7 +313,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: /tmp/digests
-          pattern: digests-${{ needs.setup-matrix.outputs.sanitized_image_name }}-*
+          pattern: digests-${{ needs.setup-matrix.outputs.sanitized_image_name }}--*
           merge-multiple: true
 
       - name: Set up Docker Buildx
