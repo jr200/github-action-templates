@@ -18,6 +18,8 @@ grep -q 'enable-gha-cache-export:' "$reusable"
 grep -q 'cache-from: type=gha,scope=${{ inputs.image_name }}-${{ matrix.platform }}' "$reusable"
 grep -q 'name: Publish image success tag' "$reusable"
 grep -q 'docker buildx imagetools inspect' "$reusable"
+grep -Fq 'name: digests-${{ needs.setup-matrix.outputs.sanitized_image_name }}--${{ env.PLATFORM_PAIR }}' "$reusable"
+grep -Fq 'pattern: digests-${{ needs.setup-matrix.outputs.sanitized_image_name }}--*' "$reusable"
 grep -q 'success_tag="${image_name}-${IMAGE_TAG}"' "$reusable"
 grep -q "|| existing_sha=''" "$reusable"
 inspect_line=$(grep -n 'docker buildx imagetools inspect' "$reusable" | cut -d: -f1)
@@ -29,6 +31,21 @@ fi
 grep -q "cache-to: \${{ inputs.enable-gha-cache-export && format('type=gha,scope={0}-{1},mode=min', inputs.image_name, matrix.platform) || '' }}" "$reusable"
 if grep -q 'scope=${{ inputs.tag }}-' "$reusable"; then
     echo "docker image cache must survive release tags" >&2
+    exit 1
+fi
+
+# A short image name must not collect digest artifacts from another image for
+# which it is a prefix (for example, padd and padd-supervisor).
+shopt -s extglob
+artifacts=(digests-whengas-padd--linux-amd64 digests-whengas-padd-supervisor--linux-amd64)
+matched=()
+for artifact in "${artifacts[@]}"; do
+    if [[ "$artifact" == digests-whengas-padd--* ]]; then
+        matched+=("$artifact")
+    fi
+done
+if [ "${matched[*]}" != "digests-whengas-padd--linux-amd64" ]; then
+    echo "docker digest artifact pattern crosses image names" >&2
     exit 1
 fi
 
