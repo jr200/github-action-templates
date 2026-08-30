@@ -38,8 +38,10 @@ on:
 
 jobs:
   release:
+    # Source checkout is read-only. Publishing to the chart repository uses
+    # charts_write_token, so the caller's GITHUB_TOKEN needs no write scope.
     permissions:
-      contents: write
+      contents: read
     runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
     steps:
       - name: Checkout
