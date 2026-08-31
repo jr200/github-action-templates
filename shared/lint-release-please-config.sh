@@ -16,6 +16,9 @@
 #   cross-checks were tried and dropped — repos legitimately mix
 #   release-type=simple with a package.json (devDeps, tooling metadata, etc.),
 #   making the cross-check more false-positive than catch.
+#   Grouped and standalone Release PR title patterns MUST retain both
+#   component and version placeholders so multi-component repositories do not
+#   generate ambiguous titles that Release Please cannot reliably parse.
 #
 # Usage: .shared/lint-release-please-config.sh [config-file]
 #   config-file defaults to release-please-config.json
@@ -66,6 +69,14 @@ EOF
 # and an empty `.` package (the canonical pattern for single-package
 # repos) get false-positives.
 top_level_type=$(jq -r '.["release-type"] // ""' "$config")
+
+for title_key in group-pull-request-title-pattern pull-request-title-pattern; do
+  title_pattern=$(jq -r --arg key "$title_key" '.[$key] // ""' "$config")
+  if [[ "$title_pattern" != *'${component}'* || "$title_pattern" != *'${version}'* ]]; then
+    echo "::error file=${config}::${title_key} must include both \${component} and \${version}; got '${title_pattern}'.$(overlay_fix_hint)"
+    fail=1
+  fi
+done
 
 while IFS=$'\t' read -r pkg_dir release_type; do
   pkg_label="$pkg_dir"
