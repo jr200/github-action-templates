@@ -5,6 +5,17 @@ ROOT=$(git rev-parse --show-toplevel)
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
+invalid_release_config="$TMPDIR/invalid-release-please-config.json"
+jq '
+  .["release-type"] = "go"
+  | .["group-pull-request-title-pattern"] = "chore(${branch}): release ${component} ${version}"
+' "$ROOT/shared/release-please-config.base.json" > "$invalid_release_config"
+if "$ROOT/shared/lint-release-please-config.sh" "$invalid_release_config" >"$TMPDIR/invalid-release-config.log" 2>&1; then
+    echo "release config lint accepted a title pattern without ${scope}" >&2
+    exit 1
+fi
+grep -Fq 'must include ${scope}, ${component}, and ${version}' "$TMPDIR/invalid-release-config.log"
+
 make_consumer_repo() {
     local repo_dir="$1"
     mkdir -p "$repo_dir/.github" "$repo_dir/scripts" "$repo_dir/.husky" "$repo_dir/.shared"
@@ -182,8 +193,8 @@ YAML
     test -x .githooks/lint-message-text.sh
     test -f cog.toml
     test -f release-please-config.json
-    test "$(jq -r '.["group-pull-request-title-pattern"]' release-please-config.json)" = 'chore(${branch}): release ${component} ${version}'
-    test "$(jq -r '.["pull-request-title-pattern"]' release-please-config.json)" = 'chore(${branch}): release ${component} ${version}'
+    test "$(jq -r '.["group-pull-request-title-pattern"]' release-please-config.json)" = 'chore${scope}: release${component} ${version}'
+    test "$(jq -r '.["pull-request-title-pattern"]' release-please-config.json)" = 'chore${scope}: release${component} ${version}'
     test -f .syncpackrc.yaml
     test "$(git config --get core.hooksPath)" = ".githooks"
     grep -q '"prepare": "husky"' package.json
