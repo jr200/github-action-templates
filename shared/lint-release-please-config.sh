@@ -16,9 +16,9 @@
 #   cross-checks were tried and dropped — repos legitimately mix
 #   release-type=simple with a package.json (devDeps, tooling metadata, etc.),
 #   making the cross-check more false-positive than catch.
-#   Grouped and standalone Release PR title patterns MUST retain both
-#   component and version placeholders so multi-component repositories do not
-#   generate ambiguous titles that Release Please cannot reliably parse.
+#   Grouped and standalone Release PR title patterns MUST retain scope,
+#   component, and version placeholders. Release Please uses those fields to
+#   parse a merged release PR back into the releases and tags it must publish.
 #
 # Usage: .shared/lint-release-please-config.sh [config-file]
 #   config-file defaults to release-please-config.json
@@ -72,8 +72,8 @@ top_level_type=$(jq -r '.["release-type"] // ""' "$config")
 
 for title_key in group-pull-request-title-pattern pull-request-title-pattern; do
   title_pattern=$(jq -r --arg key "$title_key" '.[$key] // ""' "$config")
-  if [[ "$title_pattern" != *'${component}'* || "$title_pattern" != *'${version}'* ]]; then
-    echo "::error file=${config}::${title_key} must include both \${component} and \${version}; got '${title_pattern}'.$(overlay_fix_hint)"
+  if [[ "$title_pattern" != *'${scope}'* || "$title_pattern" != *'${component}'* || "$title_pattern" != *'${version}'* ]]; then
+    echo "::error file=${config}::${title_key} must include \${scope}, \${component}, and \${version}; got '${title_pattern}'. Release Please must parse all three fields after merge to publish the correct tags.$(overlay_fix_hint)"
     fail=1
   fi
 done
