@@ -183,6 +183,7 @@ YAML
     test -f cog.toml
     test -f release-please-config.json
     test "$(jq -r '.["group-pull-request-title-pattern"]' release-please-config.json)" = 'chore(${branch}): release ${component} ${version}'
+    test "$(jq -r '.["pull-request-title-pattern"]' release-please-config.json)" = 'chore(${branch}): release ${component} ${version}'
     test -f .syncpackrc.yaml
     test "$(git config --get core.hooksPath)" = ".githooks"
     grep -q '"prepare": "husky"' package.json
