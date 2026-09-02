@@ -113,7 +113,11 @@ jobs:
         run: |
           set -euo pipefail
           if [ -f .github/images.yaml ]; then
-            if [ -n "$RELEASE_COMPONENT" ]; then
+            # Release Please uses "." as the component for a root package with
+            # no explicit component name. That is the repository-wide release
+            # sentinel, so build every declared image rather than filtering for
+            # an image whose component is literally ".".
+            if [ -n "$RELEASE_COMPONENT" ] && [ "$RELEASE_COMPONENT" != "." ]; then
               MATRIX=$(RELEASE_COMPONENT="$RELEASE_COMPONENT" yq -o=json -I=0 \
                 '{"include": [.images[] | select(.component == strenv(RELEASE_COMPONENT))]}' \
                 .github/images.yaml)
