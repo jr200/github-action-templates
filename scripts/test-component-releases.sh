@@ -12,6 +12,7 @@ grep -Fq 'PATHS_RELEASED: ${{ steps.release.outputs.paths_released }}' "$reusabl
 grep -Fq 'release: ${{ fromJSON(needs.release.outputs.releases) }}' "$release_caller"
 grep -Fq '"component": "${{ matrix.release.component }}"' "$release_caller"
 grep -Fq 'RELEASE_COMPONENT: ${{ fromJson(needs.configure.outputs.context).component' "$docker_caller"
+grep -Fq 'if [ -n "$RELEASE_COMPONENT" ] && [ "$RELEASE_COMPONENT" != "." ]; then' "$docker_caller"
 grep -Fq 'select(.component == strenv(RELEASE_COMPONENT))' "$docker_caller"
 grep -Fq 'success-tag-prefix: ${{ matrix.success-tag-prefix' "$docker_caller"
 test "$(grep -c 'include-component-in-tag' "$reusable")" -ge 2
@@ -42,5 +43,22 @@ jq -e '
   and .[0] == {path: ".", component: "padd", tag_name: "padd-v1.2.3", version: "1.2.3", sha: "aaa"}
   and .[1] == {path: "cmd/padd-supervisor", component: "padd-supervisor", tag_name: "padd-supervisor-v0.4.0", version: "0.4.0", sha: "bbb"}
 ' <<<"$releases" >/dev/null
+
+images=$(mktemp)
+trap 'rm -f "$images"' EXIT
+printf '%s\n' \
+  'images:' \
+  '  - name: agent-runtime' \
+  '    component: runtime' \
+  '  - name: openhands-standard' >"$images"
+
+all_images=$(yq -o=json -I=0 '{"include": .images}' "$images")
+runtime_images=$(RELEASE_COMPONENT=runtime yq -o=json -I=0 \
+  '{"include": [.images[] | select(.component == strenv(RELEASE_COMPONENT))]}' \
+  "$images")
+
+jq -e '.include | map(.name) == ["agent-runtime", "openhands-standard"]' \
+  <<<"$all_images" >/dev/null
+jq -e '.include | map(.name) == ["agent-runtime"]' <<<"$runtime_images" >/dev/null
 
 echo "test-component-releases: OK"
