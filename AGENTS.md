@@ -58,9 +58,40 @@ Current groups:
 | `quarto-docs` | publish-quarto-docs | repo publishes a Quarto site from `docs` to `gh-pages` |
 | `helm-chart` | build-helm-chart | repo publishes a Helm chart (needs `vars.HELM_CHART_REPO` + `secrets.CHARTS_WRITE_TOKEN`) |
 | `wheel` | publish-wheel | repo publishes a wheel to PyPI (needs `secrets.PYPI_API_TOKEN`) |
+| `rust-crate` | publish-crate | repo publishes a Rust crate to crates.io (needs `secrets.CRATES_IO_TOKEN`) |
 | `release` | release-please | repo cuts versioned releases |
 | `oci-artifact` | publish-oci-artifact | repo publishes a generic OCI artifact bundle to GHCR on release |
 | `drift-check-rulesets` | drift-check-rulesets | one consumer per org watches its own ruleset state |
+
+## Publication-triggered Renovate
+
+Publishing repositories may opt into targeted downstream Renovate runs with a
+repo-owned `.github/artifacts.yaml`. The file is configuration, not a generated
+workflow, and is therefore outside shared workflow drift checks.
+
+```yaml
+version: 1
+artifacts:
+  - component: api
+    publisher: docker
+    type: docker
+    name: ghcr.io/example/api
+    renovate:
+      repository: example/infrastructure
+      dependencies: [example/api]
+```
+
+`component` matches the Release Please component. `publisher` identifies the
+completion signal: `docker`, `npm`, `pypi`, `cargo`, `helm`, `oci`, or `release`.
+Use `release` for Go modules because their Git tag is the published artifact.
+The other publishers notify only after their registry upload succeeds.
+
+The target repository must listen for the `artifact-published`
+`repository_dispatch` event and pass its dependency list to the reusable
+Renovate workflow's `dependency-names` input. Same-org dispatches can use the
+normal integration App. Cross-org targets require
+`RENOVATE_DISPATCH_CLIENT_ID` and `RENOVATE_DISPATCH_APP_PRIVATE_KEY` for an App
+installed on the target repository.
 
 For the `swift` group, keep the consumer caller generic. The reusable workflow
 auto-detects a single `.xcodeproj` and then chooses the matching project-named

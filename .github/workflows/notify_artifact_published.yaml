@@ -1,0 +1,112 @@
+name: template-notify-artifact-published
+
+on:
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: Source ref containing .github/artifacts.yaml
+        required: true
+        type: string
+      publisher:
+        description: Publication lane (docker, npm, pypi, cargo, helm, oci, or release)
+        required: true
+        type: string
+      component:
+        description: Release Please component
+        required: true
+        type: string
+      version:
+        description: Published version
+        required: true
+        type: string
+      source-sha:
+        description: Source commit represented by the publication
+        required: false
+        type: string
+        default: ''
+      dispatch-client-id:
+        description: Client ID for an App installed on configured target repositories
+        required: false
+        type: string
+        default: ''
+      runner:
+        description: Runner label
+        required: false
+        type: string
+        default: ''
+    secrets:
+      dispatch_app_private_key:
+        required: false
+      integration_app_private_key:
+        required: false
+
+jobs:
+  resolve:
+    runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout-ref }}
+          sparse-checkout: |
+            .github/artifacts.yaml
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v7
+        with:
+          repository: jr200-labs/github-action-templates
+          ref: master
+          path: _gha_templates
+      - id: resolve
+        name: Resolve Renovate notifications
+        env:
+          PUBLISHER: ${{ inputs.publisher }}
+          COMPONENT: ${{ inputs.component }}
+        run: |
+          set -euo pipefail
+          matrix=$(_gha_templates/scripts/resolve-artifact-renovate.sh \
+            .github/artifacts.yaml "$PUBLISHER" "$COMPONENT")
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "Resolved notifications: $matrix"
+
+  notify:
+    needs: resolve
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.resolve.outputs.matrix) }}
+    runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    steps:
+      - name: No Renovate target configured
+        if: matrix.configured == false
+        run: echo "No artifact entry matches publisher=${{ inputs.publisher }} component=${{ inputs.component }}"
+
+      - name: Require dispatch credentials
+        if: matrix.configured == true
+        env:
+          CLIENT_ID: ${{ inputs.dispatch-client-id || vars.RENOVATE_DISPATCH_CLIENT_ID || vars.INTEGRATION_CLIENT_ID }}
+          PRIVATE_KEY: ${{ secrets.dispatch_app_private_key || secrets.integration_app_private_key }}
+        run: |
+          set -euo pipefail
+          [ -n "$CLIENT_ID" ] || { echo "::error::RENOVATE_DISPATCH_CLIENT_ID or INTEGRATION_CLIENT_ID is required"; exit 1; }
+          [ -n "$PRIVATE_KEY" ] || { echo "::error::RENOVATE_DISPATCH_APP_PRIVATE_KEY or INTEGRATION_APP_PRIVATE_KEY is required"; exit 1; }
+
+      - name: Mint target repository token
+        if: matrix.configured == true
+        id: target-token
+        uses: actions/create-github-app-token@v3.2.0
+        with:
+          client-id: ${{ inputs.dispatch-client-id || vars.RENOVATE_DISPATCH_CLIENT_ID || vars.INTEGRATION_CLIENT_ID }}
+          private-key: ${{ secrets.dispatch_app_private_key || secrets.integration_app_private_key }}
+          owner: ${{ matrix.target_owner }}
+          repositories: ${{ matrix.target_name }}
+          permission-contents: write
+
+      - name: Dispatch artifact-published
+        if: matrix.configured == true
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ steps.target-token.outputs.token }}
+          repository: ${{ matrix.target_repository }}
+          event-type: artifact-published
+          client-payload: >-
+            {"source_repository":${{ toJSON(github.repository) }},"source_sha":${{ toJSON(inputs.source-sha) }},"component":${{ toJSON(inputs.component) }},"publisher":${{ toJSON(inputs.publisher) }},"artifact":{"type":${{ toJSON(matrix.artifact_type) }},"name":${{ toJSON(matrix.artifact_name) }},"version":${{ toJSON(inputs.version) }}},"dependencies":${{ toJSON(matrix.dependencies) }}}

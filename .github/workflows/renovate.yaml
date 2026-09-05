@@ -64,6 +64,11 @@ on:
         required: false
         type: string
         default: ''
+      dependency-names:
+        description: Optional JSON array of exact dependency/package names to update
+        required: false
+        type: string
+        default: ''
       client-id:
         description: >
           GitHub App Client ID for minting installation tokens. Callers should
@@ -159,7 +164,7 @@ jobs:
         # A manual run means "check upstream now". Restoring the datasource
         # cache can hide a release published moments earlier until Renovate's
         # soft TTL expires. Scheduled runs retain the cache for efficiency.
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name != 'workflow_dispatch' && inputs.dependency-names == ''
         uses: actions/cache@v6
         with:
           path: .renovate-out/cache
@@ -172,6 +177,48 @@ jobs:
         run: |
           mkdir -p "$GITHUB_WORKSPACE/.renovate-out/cache"
           chmod -R u+rwX,go+rwX "$GITHUB_WORKSPACE/.renovate-out"
+
+      - name: Build targeted Renovate config
+        id: targeted-config
+        if: inputs.dependency-names != ''
+        shell: bash
+        env:
+          DEPENDENCY_NAMES: ${{ inputs.dependency-names }}
+          BASE_CONFIG: ${{ inputs.config-file || 'renovate.json' }}
+        run: |
+          set -euo pipefail
+          dependencies=$(jq -ce '
+            if type != "array" or length == 0 or length > 50 or
+               any(.[]; type != "string" or length == 0 or length > 200)
+            then error("dependency-names must be a non-empty JSON array of at most 50 strings")
+            else unique
+            end
+          ' <<<"$DEPENDENCY_NAMES")
+          [ -f "$BASE_CONFIG" ] || {
+            echo "::error::Renovate base config not found: $BASE_CONFIG"
+            exit 1
+          }
+          jq --argjson dependencies "$dependencies" '
+            .packageRules = ((.packageRules // []) + [
+              {
+                "description": "Publication-triggered run: disable dependencies by default.",
+                "matchPackageNames": ["/.*/"],
+                "enabled": false
+              },
+              {
+                "description": "Publication-triggered run: enable exact dependency names.",
+                "matchDepNames": $dependencies,
+                "enabled": true
+              },
+              {
+                "description": "Publication-triggered run: enable exact package names.",
+                "matchPackageNames": $dependencies,
+                "enabled": true
+              }
+            ])
+          ' "$BASE_CONFIG" > "$GITHUB_WORKSPACE/.renovate-out/targeted-config.json"
+          echo "config-file=/out/targeted-config.json" >> "$GITHUB_OUTPUT"
+          echo "Targeted dependencies: $dependencies"
 
       - name: Self-hosted Renovate (pass 1)
         # renovatebot/github-action only publishes specific patch tags, no
@@ -235,7 +282,7 @@ jobs:
           # 0777, mounted above) so the post-step can read it.
           RENOVATE_REPORT_TYPE: 'file'
           RENOVATE_REPORT_PATH: /out/pass1.report.json
-          RENOVATE_CONFIG_FILE: ${{ inputs.config-file }}
+          RENOVATE_CONFIG_FILE: ${{ steps.targeted-config.outputs.config-file || inputs.config-file }}
 
       - name: Decide whether Renovate pass 2 is needed
         id: renovate-pass2
@@ -288,7 +335,7 @@ jobs:
           RENOVATE_CUSTOM_ENV_VARIABLES: '{"PNPM_CONFIG_MINIMUM_RELEASE_AGE":"0"}'
           RENOVATE_REPORT_TYPE: 'file'
           RENOVATE_REPORT_PATH: /out/pass2.report.json
-          RENOVATE_CONFIG_FILE: ${{ inputs.config-file }}
+          RENOVATE_CONFIG_FILE: ${{ steps.targeted-config.outputs.config-file || inputs.config-file }}
 
       - name: Checkout shared repair scripts
         if: success() && inputs.dry-run == '' && inputs.repair-branches

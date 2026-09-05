@@ -1,0 +1,36 @@
+name: template-publish-cargo
+
+on:
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: Source ref to publish
+        required: true
+        type: string
+      package-path:
+        description: Directory containing Cargo.toml
+        required: false
+        type: string
+        default: '.'
+      runner:
+        description: Runner label
+        required: false
+        type: string
+        default: ''
+    secrets:
+      crates_io_token:
+        required: true
+
+jobs:
+  publish:
+    runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout-ref }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish crate
+        working-directory: ${{ inputs.package-path }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.crates_io_token }}
+        run: cargo publish --locked
