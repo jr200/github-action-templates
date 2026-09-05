@@ -50,9 +50,17 @@ if ! grep -q 'config-file:' "$renovate_workflow"; then
     echo "renovate workflow must expose a config-file input for scoped lanes" >&2
     exit 1
 fi
-config_file_count=$(grep -c 'RENOVATE_CONFIG_FILE: \${{ inputs.config-file }}' "$renovate_workflow" || true)
+config_file_count=$(grep -F -c 'RENOVATE_CONFIG_FILE: ${{ steps.targeted-config.outputs.config-file || inputs.config-file }}' "$renovate_workflow" || true)
 if [ "$config_file_count" -ne 2 ]; then
     echo "renovate workflow must pass config-file through to both Renovate passes" >&2
+    exit 1
+fi
+if ! grep -Fq 'echo "config-file=.renovate-out/targeted-config.json"' "$renovate_workflow"; then
+    echo "targeted Renovate config must use a runner-visible relative path" >&2
+    exit 1
+fi
+if grep -Fq 'echo "config-file=/out/targeted-config.json"' "$renovate_workflow"; then
+    echo "targeted Renovate config must not use the container-only /out path" >&2
     exit 1
 fi
 
