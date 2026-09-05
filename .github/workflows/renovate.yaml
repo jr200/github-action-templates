@@ -65,7 +65,7 @@ on:
         type: string
         default: ''
       dependency-names:
-        description: Optional JSON array of exact dependency/package names to update
+        description: Optional JSON array of exact Renovate depName values to update
         required: false
         type: string
         default: ''
@@ -199,7 +199,8 @@ jobs:
             exit 1
           }
           jq --argjson dependencies "$dependencies" '
-            .packageRules = ((.packageRules // []) + [
+            .pruneStaleBranches = false
+            | .packageRules = ((.packageRules // []) + [
               {
                 "description": "Publication-triggered run: disable dependencies by default.",
                 "matchPackageNames": ["/.*/"],
@@ -208,11 +209,6 @@ jobs:
               {
                 "description": "Publication-triggered run: enable exact dependency names.",
                 "matchDepNames": $dependencies,
-                "enabled": true
-              },
-              {
-                "description": "Publication-triggered run: enable exact package names.",
-                "matchPackageNames": $dependencies,
                 "enabled": true
               }
             ])

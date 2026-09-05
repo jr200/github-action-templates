@@ -63,6 +63,18 @@ if grep -Fq 'echo "config-file=/out/targeted-config.json"' "$renovate_workflow";
     echo "targeted Renovate config must not use the container-only /out path" >&2
     exit 1
 fi
+if ! grep -Fq '.pruneStaleBranches = false' "$renovate_workflow"; then
+    echo "targeted Renovate must not prune unrelated stale branches" >&2
+    exit 1
+fi
+if grep -Fq '"matchPackageNames": $dependencies' "$renovate_workflow"; then
+    echo "targeted Renovate must not enable dependencies through shared lookup package names" >&2
+    exit 1
+fi
+if ! grep -Fq '"matchDepNames": $dependencies' "$renovate_workflow"; then
+    echo "targeted Renovate must enable exact dependency names" >&2
+    exit 1
+fi
 
 if ! grep -Eq 'uses: actions/cache@v[0-9]+' "$renovate_workflow"; then
     echo "renovate workflow must restore a persisted Renovate cache" >&2
