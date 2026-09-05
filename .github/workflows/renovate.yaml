@@ -217,7 +217,10 @@ jobs:
               }
             ])
           ' "$BASE_CONFIG" > "$GITHUB_WORKSPACE/.renovate-out/targeted-config.json"
-          echo "config-file=/out/targeted-config.json" >> "$GITHUB_OUTPUT"
+          # renovatebot/github-action validates this path on the runner, then
+          # mounts the file into its container and rewrites the config env var.
+          # Keep it runner-relative; /out exists only inside the container.
+          echo "config-file=.renovate-out/targeted-config.json" >> "$GITHUB_OUTPUT"
           echo "Targeted dependencies: $dependencies"
 
       - name: Self-hosted Renovate (pass 1)
