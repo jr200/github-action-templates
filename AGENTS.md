@@ -168,6 +168,11 @@ Separate from the workflow injection: `shared/sync.sh` syncs canonical lint conf
 - `shared/release-please-config.base.json` — template-owned base config in this repo
 - `release-please-config.json` — committed merge output at the consumer repo root, refreshed by `./.shared/sync.sh`
 
+The shared base opens a separate Release Please PR per component. This keeps
+every title in `chore(<branch>): release <component> <version>` form; Release
+Please's grouped title loses the component and version for non-root-only
+releases.
+
 Rules:
 
 - Do not hand-edit `release-please-config.json` in a consumer repo; update `.release-please.local.json` and re-run `./.shared/sync.sh`

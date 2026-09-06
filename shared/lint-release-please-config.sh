@@ -17,8 +17,9 @@
 #   release-type=simple with a package.json (devDeps, tooling metadata, etc.),
 #   making the cross-check more false-positive than catch.
 #   Grouped and standalone Release PR title patterns MUST retain scope,
-#   component, and version placeholders. Release Please uses those fields to
-#   parse a merged release PR back into the releases and tags it must publish.
+#   component, and version placeholders. Release PRs MUST remain separate so
+#   Release Please does not erase component and version values when only a
+#   non-root package is released.
 #
 # Usage: .shared/lint-release-please-config.sh [config-file]
 #   config-file defaults to release-please-config.json
@@ -77,6 +78,11 @@ for title_key in group-pull-request-title-pattern pull-request-title-pattern; do
     fail=1
   fi
 done
+
+if [ "$(jq -r '.["separate-pull-requests"] // false' "$config")" != "true" ]; then
+  echo "::error file=${config}::separate-pull-requests must be true so every release PR title retains its component and version. Release Please's grouped title only takes those values from a root-package release.$(overlay_fix_hint)"
+  fail=1
+fi
 
 while IFS=$'\t' read -r pkg_dir release_type; do
   pkg_label="$pkg_dir"
