@@ -16,6 +16,15 @@ if "$ROOT/shared/lint-release-please-config.sh" "$invalid_release_config" >"$TMP
 fi
 grep -Fq 'must include ${scope}, ${component}, and ${version}' "$TMPDIR/invalid-release-config.log"
 
+grouped_release_config="$TMPDIR/grouped-release-please-config.json"
+jq '.["release-type"] = "go" | .["separate-pull-requests"] = false' \
+  "$ROOT/shared/release-please-config.base.json" > "$grouped_release_config"
+if "$ROOT/shared/lint-release-please-config.sh" "$grouped_release_config" >"$TMPDIR/grouped-release-config.log" 2>&1; then
+    echo "release config lint accepted grouped release PRs" >&2
+    exit 1
+fi
+grep -Fq 'separate-pull-requests must be true' "$TMPDIR/grouped-release-config.log"
+
 make_consumer_repo() {
     local repo_dir="$1"
     mkdir -p "$repo_dir/.github" "$repo_dir/scripts" "$repo_dir/.husky" "$repo_dir/.shared"
@@ -193,6 +202,7 @@ YAML
     test -x .githooks/lint-message-text.sh
     test -f cog.toml
     test -f release-please-config.json
+    test "$(jq -r '.["separate-pull-requests"]' release-please-config.json)" = 'true'
     test "$(jq -r '.["group-pull-request-title-pattern"]' release-please-config.json)" = 'chore${scope}: release${component} ${version}'
     test "$(jq -r '.["pull-request-title-pattern"]' release-please-config.json)" = 'chore${scope}: release${component} ${version}'
     test -f .syncpackrc.yaml
