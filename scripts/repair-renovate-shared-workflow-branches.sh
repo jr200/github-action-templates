@@ -98,6 +98,9 @@ while IFS= read -r remote_ref; do
   stage_path_if_present pnpm-lock.yaml
   stage_path_if_present scripts/sync-shared
   stage_path_if_present scripts/sync-shared-drift-check
+  while IFS= read -r managed_file; do
+    [ -z "$managed_file" ] || stage_path_if_present "$managed_file"
+  done < <(./scripts/sync-shared --list-supporting-files)
   stage_path_if_present .husky/commit-msg
   stage_path_if_present .shared/commitlint.config.mjs
   stage_path_if_present commitlint.config.js

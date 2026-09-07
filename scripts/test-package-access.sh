@@ -56,4 +56,11 @@ if MOCK_BODY='{"visibility":"public"}' run_check >"$tmp/visibility.out" 2>&1; th
 fi
 grep -q 'DRIFT: example/runtime visibility is public; expected private' "$tmp/visibility.out"
 
+wizard_output="$("$root/consumers/files/scripts/github-package-access-wizard" "$tmp/package-access.yaml")"
+grep -Fq 'https://github.com/orgs/example/packages/container/runtime/settings' <<<"$wizard_output"
+if grep -Fq '/container/package/runtime/settings' <<<"$wizard_output"; then
+  echo "wizard generated the package landing route instead of the settings route" >&2
+  exit 1
+fi
+
 echo 'package access checks passed'
