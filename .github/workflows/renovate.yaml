@@ -7,11 +7,11 @@ name: template-renovate
 # (which extends `github>jr200-labs/github-action-templates`) is
 # auto-discovered.
 #
-# Authentication. Renovate runs against three datasources that need real
-# auth: cross-repo private git tags (e.g. a private package @ git+https...),
-# the ghcr.io container registry, and the calling repo itself for
-# branch/PR/issue creation. The org-level GitHub App secrets cover all of
-# this when present:
+# Authentication. Renovate uses the integration App token for GitHub API,
+# git, branch, PR, and issue operations. GitHub Apps cannot read packages
+# through a package's "Manage Actions access" repository grant, so GHCR uses
+# the caller repository's GITHUB_TOKEN through a dedicated host rule.
+# The org-level GitHub App credentials are:
 #
 #   * vars.INTEGRATION_APP_ID (= the App's numeric ID)
 #   * secrets.INTEGRATION_APP_PRIVATE_KEY (= the App's .pem contents)
@@ -20,15 +20,12 @@ name: template-renovate
 # visibility ALL, populated by a per-org integration App (see JRL-18 for
 # the architecture).
 #
-# When the App secrets are present (the normal case for configured
-# consumer orgs), this workflow mints a short-lived installation token
-# via actions/create-github-app-token and feeds it to Renovate as
-# RENOVATE_TOKEN. When they are not present (e.g. a personal-account
-# repo), it falls back to the runner's GITHUB_TOKEN — Renovate still
-# works for public datasources (PyPI, npm, github-actions on public
-# repos) but cross-repo private lookups will fail with "no-result" and
-# the resulting PRs will not trigger downstream CI workflows on the same
-# repo. The PR creation itself still works.
+# When the App secrets are present (the normal case for configured consumer
+# orgs), this workflow mints a short-lived installation token and feeds it to
+# Renovate as RENOVATE_TOKEN. When they are absent, it falls back to the
+# runner's GITHUB_TOKEN. Private GHCR lookup always uses GITHUB_TOKEN and
+# therefore requires the package to grant the caller repository Actions read
+# access. The package-access shared group declares and checks that relationship.
 #
 # Consumer usage (per-repo `.github/workflows/renovate.yml`):
 #
@@ -124,6 +121,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      packages: read
     steps:
       - name: Mint App installation token
         id: app-token
@@ -288,6 +286,9 @@ jobs:
           # "Configure Renovate" PR.
           RENOVATE_ONBOARDING: 'false'
           RENOVATE_REQUIRE_CONFIG: 'required'
+          # Package "Manage Actions access" grants apply to the repository's
+          # GITHUB_TOKEN, not the integration App token used as RENOVATE_TOKEN.
+          RENOVATE_HOST_RULES: '[{"matchHost":"ghcr.io","hostType":"docker","username":"x-access-token","password":"${{ github.token }}"}]'
           # Allow tightly-scoped repo-local Renovate helpers. Keep executable
           # post-upgrade automation under .renovate/ so repositories can use
           # documented metadata-driven helper scripts without enabling broad
@@ -355,6 +356,7 @@ jobs:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_ONBOARDING: 'false'
           RENOVATE_REQUIRE_CONFIG: 'required'
+          RENOVATE_HOST_RULES: '[{"matchHost":"ghcr.io","hostType":"docker","username":"x-access-token","password":"${{ github.token }}"}]'
           RENOVATE_ALLOWED_COMMANDS: '^(?:uv lock(?: --refresh)?|\./\.renovate/[A-Za-z0-9_.-]+\.py|\./scripts/sync-shared)$'
           PNPM_CONFIG_MINIMUM_RELEASE_AGE: '0'
           RENOVATE_CUSTOM_ENV_VARIABLES: '{"PNPM_CONFIG_MINIMUM_RELEASE_AGE":"0"}'

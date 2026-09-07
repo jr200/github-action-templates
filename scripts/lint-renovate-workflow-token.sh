@@ -37,6 +37,22 @@ if ! grep -q 'permission-workflows: write' "$workflow"; then
   exit 1
 fi
 
+if ! grep -q '^      packages: read$' "$workflow"; then
+  echo "lint-renovate-workflow-token: reusable Renovate job must request packages:read" >&2
+  exit 1
+fi
+
+if [ "$(grep -c 'RENOVATE_HOST_RULES:.*github.token' "$workflow")" -ne 2 ]; then
+  echo "lint-renovate-workflow-token: both Renovate passes must authenticate ghcr.io with github.token" >&2
+  exit 1
+fi
+
+caller="consumers/workflows/renovate.yaml"
+if [ ! -f "$caller" ] || ! grep -q '^  packages: read$' "$caller"; then
+  echo "lint-renovate-workflow-token: canonical caller must grant packages:read" >&2
+  exit 1
+fi
+
 mint_line="$(grep -n 'name: Mint App installation token' "$workflow" | head -n1 | cut -d: -f1 || true)"
 checkout_line="$(grep -n 'name: Checkout$' "$workflow" | head -n1 | cut -d: -f1 || true)"
 checkout_token_line="$(grep -n 'token: \${{ steps.app-token.outputs.token }}' "$workflow" | head -n1 | cut -d: -f1 || true)"
