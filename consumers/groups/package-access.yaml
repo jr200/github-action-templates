@@ -1,0 +1,4 @@
+# Package access group — opt in when workflows consume private packages with
+# granular GitHub Actions access. The consumer owns .github/package-access.yaml.
+includes:
+  - package-access-drift
