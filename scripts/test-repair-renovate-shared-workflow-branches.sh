@@ -87,6 +87,10 @@ mkdir -p "$shared_root/shared-vnext/consumers/scripts"
 cat > "$shared_root/shared-vnext/consumers/scripts/sync-shared" <<'SYNC'
 #!/usr/bin/env bash
 set -euo pipefail
+if [ "${1:-}" = "--list-supporting-files" ]; then
+  echo scripts/github-package-access-wizard
+  exit 0
+fi
 mkdir -p .github/workflows .githooks scripts
 cat > .github/workflows/drift-check.yaml <<'WORKFLOW'
 # GENERATED/SHARED WORKFLOW: copied into consuming repos by sync-shared.
@@ -98,6 +102,8 @@ cat > .githooks/commit-msg <<'HOOK'
 cog verify --file "$1"
 HOOK
 chmod +x .githooks/commit-msg
+printf '#!/usr/bin/env bash\necho synced wizard\n' > scripts/github-package-access-wizard
+chmod +x scripts/github-package-access-wizard
 rm -f commitlint.config.mjs .shared/commitlint.config.mjs .husky/commit-msg
 jq 'del(.scripts.prepare | select(. == "husky"))
   | del(.scripts | select(. == {}))
@@ -200,7 +206,7 @@ fi
 
 git fetch origin renovate/shared-workflow-ref >/dev/null 2>&1
 shared_files="$(git diff --name-only origin/master...origin/renovate/shared-workflow-ref)"
-for expected in .github/.shared-config.yaml .githooks/commit-msg package.json pnpm-lock.yaml scripts/sync-shared; do
+for expected in .github/.shared-config.yaml .githooks/commit-msg package.json pnpm-lock.yaml scripts/github-package-access-wizard scripts/sync-shared; do
   if ! grep -qx "$expected" <<<"$shared_files"; then
     echo "expected shared workflow ref repair to include $expected" >&2
     echo "$shared_files" >&2

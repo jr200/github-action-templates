@@ -86,9 +86,10 @@ packages:
 The shared workflow queries package metadata with the consuming repository's
 own `GITHUB_TOKEN`. This proves that the repository has effective read access
 and that package visibility matches the declaration. Configure the relationship
-with **Manage Actions access** on the package settings page. Maven/Gradle and
-RubyGems packages inherit source-repository permissions and use a different
-access model.
+with the group-managed `scripts/github-package-access-wizard`; `sync-shared`
+copies it into opted-in repositories and checks it for drift alongside the
+canonical workflow. Maven/Gradle and RubyGems packages inherit source-repository
+permissions and use a different access model.
 
 ## Publication-triggered Renovate
 
@@ -145,7 +146,7 @@ workflow.
 ## Adding a new group
 
 1. Add `consumers/workflows/<workflow-name>.yaml` — the caller file. Must include a top-level `permissions:` block; see GOTCHAS.md #12.
-2. Add `consumers/groups/<group-name>.yaml` listing it under `includes:`.
+2. Add `consumers/groups/<group-name>.yaml` listing it under `includes:`. Optional supporting files live under `consumers/files/` and use repository-relative paths under the group's `files:` key.
 3. Update this doc.
 4. Open PR. Merge.
 5. The `release-shared-ref` workflow automatically tags the merged commit with the next `shared-vX.Y.Z` ref and publishes a GitHub Release with generated notes.

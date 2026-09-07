@@ -142,9 +142,19 @@ YAML
     SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared
     workflow=.github/workflows/package-access-drift.yaml
     test -f "$workflow"
+    test -x scripts/github-package-access-wizard
+    cmp "$ROOT/consumers/files/scripts/github-package-access-wizard" scripts/github-package-access-wizard
+    test "$(SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --list-supporting-files)" = "scripts/github-package-access-wizard"
     yq -e '.permissions.packages == "read"' "$workflow" >/dev/null
     yq -e '.jobs."package-access-drift".uses == "jr200-labs/github-action-templates/.github/workflows/check_package_access.yaml@master"' "$workflow" >/dev/null
     mv .github/workflows/ci.yaml .github/workflows/bespoke_ci.yaml
+    printf '\n# drift\n' >> scripts/github-package-access-wizard
+    if STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check >wizard-drift.log 2>&1; then
+        echo "expected sync-shared --check to reject package wizard drift" >&2
+        exit 1
+    fi
+    grep -q 'drift: scripts/github-package-access-wizard differs from canonical' wizard-drift.log
+    SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared
     STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
 )
 

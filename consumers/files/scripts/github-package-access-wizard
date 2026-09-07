@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config="${1:-.github/package-access.yaml}"
+
+for command in yq jq; do
+  command -v "$command" >/dev/null || {
+    echo "Required command is not installed: $command" >&2
+    exit 2
+  }
+done
+
+[[ -f "$config" ]] || { echo "Package access config not found: $config" >&2; exit 2; }
+
+config_json="$(yq -o=json '.' "$config")"
+if ! jq -e '
+  .version == 1 and
+  (.packages | type == "array" and length > 0) and
+  all(.packages[];
+    (.owner | type == "string" and length > 0) and
+    (.owner_kind == "organization" or .owner_kind == "user") and
+    (.package_type == "npm" or .package_type == "nuget" or
+     .package_type == "container") and
+    (.name | type == "string" and length > 0) and
+    (.repository | test("^[^/]+/[^/]+$")) and
+    .required_access == "read" and
+    (.visibility == "private" or .visibility == "internal" or .visibility == "public")
+  )
+' >/dev/null <<<"$config_json"; then
+  echo "Invalid package access config: $config" >&2
+  exit 2
+fi
+
+settings_url() {
+  local owner_kind="$1" owner="$2" package_type="$3" package_name="$4"
+  local owner_path package_path
+  [[ "$owner_kind" == organization ]] && owner_path=orgs || owner_path=users
+  package_path="$(jq -rn --arg value "$package_name" '$value | @uri')"
+  printf 'https://github.com/%s/%s/packages/%s/%s/settings' \
+    "$owner_path" "$owner" "$package_type" "$package_path"
+}
+
+jq -c '.packages[]' <<<"$config_json" | while IFS= read -r package; do
+  owner="$(jq -r '.owner' <<<"$package")"
+  owner_kind="$(jq -r '.owner_kind' <<<"$package")"
+  package_type="$(jq -r '.package_type' <<<"$package")"
+  package_name="$(jq -r '.name' <<<"$package")"
+  target_repository="$(jq -r '.repository' <<<"$package")"
+  visibility="$(jq -r '.visibility' <<<"$package")"
+  url="$(settings_url "$owner_kind" "$owner" "$package_type" "$package_name")"
+
+  cat <<EOF
+
+Package: ${owner}/${package_name} (${package_type})
+Required visibility: ${visibility}
+Required Actions access: ${target_repository} — Read
+
+1. Open ${url}
+2. Under "Manage Actions access", choose "Add repository".
+3. Select ${target_repository} and set its role to "Read".
+4. Keep the package visibility set to "${visibility}".
+EOF
+
+  if [[ -t 1 && -z "${CI:-}" ]]; then
+    if command -v open >/dev/null; then
+      open "$url" >/dev/null 2>&1 || true
+    elif command -v xdg-open >/dev/null; then
+      xdg-open "$url" >/dev/null 2>&1 || true
+    fi
+  fi
+done
+
+cat <<'EOF'
+
+After saving the settings, rerun the package-access-drift workflow. It uses
+this repository's GITHUB_TOKEN and is the authoritative access check.
+EOF

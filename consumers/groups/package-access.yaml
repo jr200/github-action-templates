@@ -2,3 +2,5 @@
 # granular GitHub Actions access. The consumer owns .github/package-access.yaml.
 includes:
   - package-access-drift
+files:
+  - scripts/github-package-access-wizard
