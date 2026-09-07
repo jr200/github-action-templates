@@ -85,11 +85,14 @@ packages:
 
 The shared workflow queries package metadata with the consuming repository's
 own `GITHUB_TOKEN`. This proves that the repository has effective read access
-and that package visibility matches the declaration. Configure the relationship
-with the group-managed `scripts/github-package-access-wizard`; `sync-shared`
-copies it into opted-in repositories and checks it for drift alongside the
-canonical workflow. Maven/Gradle and RubyGems packages inherit source-repository
-permissions and use a different access model.
+and that package visibility matches the declaration. The group-managed
+`scripts/github-package-access-wizard` dispatches that check and waits for its
+result. It exits without opening package settings when access is already in
+sync, and presents the manual repair steps only when the repository token
+detects drift. (`gh auth login` is required to dispatch and observe the check.)
+`sync-shared` copies the wizard into opted-in repositories and checks it for
+drift alongside the canonical workflow. Maven/Gradle and RubyGems packages
+inherit source-repository permissions and use a different access model.
 
 ## Publication-triggered Renovate
 

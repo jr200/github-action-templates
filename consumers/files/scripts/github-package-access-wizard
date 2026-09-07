@@ -3,7 +3,7 @@ set -euo pipefail
 
 config="${1:-.github/package-access.yaml}"
 
-for command in yq jq; do
+for command in yq jq gh; do
   command -v "$command" >/dev/null || {
     echo "Required command is not installed: $command" >&2
     exit 2
@@ -30,6 +30,81 @@ if ! jq -e '
   echo "Invalid package access config: $config" >&2
   exit 2
 fi
+
+target_repository="$(jq -r '.packages[0].repository' <<<"$config_json")"
+if ! jq -e --arg repository "$target_repository" \
+  'all(.packages[]; .repository == $repository)' >/dev/null <<<"$config_json"; then
+  echo "Every package entry must target the same repository" >&2
+  exit 2
+fi
+
+gh auth status >/dev/null 2>&1 || {
+  echo "Authenticate GitHub CLI with 'gh auth login' before running this wizard." >&2
+  exit 2
+}
+
+request_id="wizard-$(date +%s)-$$"
+echo "Checking package access as ${target_repository}'s GITHUB_TOKEN..."
+if ! gh workflow run package-access-drift.yaml \
+  --repo "$target_repository" \
+  --field runner=configured \
+  --field request_id="$request_id"; then
+  echo "Could not start the package-access-drift workflow." >&2
+  exit 2
+fi
+
+run_id=
+run_url=
+for _ in {1..30}; do
+  runs="$(gh run list \
+    --repo "$target_repository" \
+    --workflow package-access-drift.yaml \
+    --event workflow_dispatch \
+    --limit 20 \
+    --json databaseId,displayTitle,url)"
+  run_id="$(jq -r --arg title "package-access-drift (${request_id})" \
+    'first(.[] | select(.displayTitle == $title) | .databaseId) // empty' <<<"$runs")"
+  run_url="$(jq -r --arg title "package-access-drift (${request_id})" \
+    'first(.[] | select(.displayTitle == $title) | .url) // empty' <<<"$runs")"
+  [[ -n "$run_id" ]] && break
+  sleep 1
+done
+
+if [[ -z "$run_id" ]]; then
+  echo "Could not find the package access check started by this wizard." >&2
+  exit 2
+fi
+
+set +e
+gh run watch "$run_id" --repo "$target_repository" --exit-status
+watch_status=$?
+set -e
+
+conclusion="$(gh run view "$run_id" --repo "$target_repository" --json conclusion --jq .conclusion)"
+if [[ "$watch_status" -eq 0 && "$conclusion" == success ]]; then
+  echo
+  echo "Package access is in sync. No changes are needed."
+  exit 0
+fi
+
+if [[ "$conclusion" != failure ]]; then
+  echo "Package access could not be verified: workflow concluded '${conclusion:-unknown}'." >&2
+  [[ -n "$run_url" ]] && echo "Check run: $run_url" >&2
+  exit 2
+fi
+
+failed_log="$(gh run view "$run_id" --repo "$target_repository" --log-failed 2>&1 || true)"
+if ! grep -q 'DRIFT:' <<<"$failed_log"; then
+  echo "Package access could not be verified because the workflow failed before reporting drift." >&2
+  [[ -n "$run_url" ]] && echo "Check run: $run_url" >&2
+  [[ -n "$failed_log" ]] && printf '%s\n' "$failed_log" >&2
+  exit 2
+fi
+
+echo
+echo "Package access drift detected by ${target_repository}'s GITHUB_TOKEN."
+[[ -n "$run_url" ]] && echo "Check run: $run_url"
+printf '%s\n' "$failed_log"
 
 settings_url() {
   local owner_kind="$1" owner="$2" package_type="$3" package_name="$4"
@@ -72,6 +147,8 @@ done
 
 cat <<'EOF'
 
-After saving the settings, rerun the package-access-drift workflow. It uses
-this repository's GITHUB_TOKEN and is the authoritative access check.
+After saving the settings, run this wizard again to verify the change with
+this repository's GITHUB_TOKEN.
 EOF
+
+exit 1
