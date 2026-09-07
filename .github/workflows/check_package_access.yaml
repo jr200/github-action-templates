@@ -1,0 +1,38 @@
+name: template-check-package-access
+
+on:
+  workflow_call:
+    inputs:
+      config-path:
+        description: Package access declaration in the caller repository
+        required: false
+        type: string
+        default: .github/package-access.yaml
+      runner:
+        description: Runner label
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  check:
+    runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@v7
+
+      - name: Checkout package access checker
+        uses: actions/checkout@v7
+        with:
+          repository: jr200-labs/github-action-templates
+          ref: master
+          path: _gha_templates
+
+      - name: Verify external package access
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./_gha_templates/scripts/check-package-access.sh "${{ inputs.config-path }}" "$GITHUB_REPOSITORY"

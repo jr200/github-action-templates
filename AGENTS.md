@@ -62,7 +62,33 @@ Current groups:
 | `release` | release-please | repo cuts versioned releases |
 | `oci-artifact` | publish-oci-artifact | repo publishes a generic OCI artifact bundle to GHCR on release |
 | `artifact-renovate` | renovate-artifact-published | repo runs targeted Renovate when a configured package or artifact is published |
+| `package-access` | package-access-drift | repo consumes private GitHub packages with granular Actions access |
 | `drift-check-rulesets` | drift-check-rulesets | one consumer per org watches its own ruleset state |
+
+## Package access drift
+
+Repositories that consume private Container, npm, or NuGet packages can opt
+into the `package-access` group and declare the required relationships in
+`.github/package-access.yaml`:
+
+```yaml
+version: 1
+packages:
+  - owner: example
+    owner_kind: organization
+    package_type: container
+    name: runtime
+    repository: example/application
+    required_access: read
+    visibility: private
+```
+
+The shared workflow queries package metadata with the consuming repository's
+own `GITHUB_TOKEN`. This proves that the repository has effective read access
+and that package visibility matches the declaration. Configure the relationship
+with **Manage Actions access** on the package settings page. Maven/Gradle and
+RubyGems packages inherit source-repository permissions and use a different
+access model.
 
 ## Publication-triggered Renovate
 

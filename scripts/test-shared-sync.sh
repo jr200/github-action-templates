@@ -128,6 +128,26 @@ YAML
     STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
 )
 
+package_access_repo="$TMPDIR/package-access-consumer"
+make_consumer_repo "$package_access_repo"
+cat > "$package_access_repo/.github/.shared-config.yaml" <<'YAML'
+ref: shared-v0.1.0
+workflows:
+  - hygiene
+  - package-access
+YAML
+(
+    cd "$package_access_repo"
+    git init -q
+    SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared
+    workflow=.github/workflows/package-access-drift.yaml
+    test -f "$workflow"
+    yq -e '.permissions.packages == "read"' "$workflow" >/dev/null
+    yq -e '.jobs."package-access-drift".uses == "jr200-labs/github-action-templates/.github/workflows/check_package_access.yaml@master"' "$workflow" >/dev/null
+    mv .github/workflows/ci.yaml .github/workflows/bespoke_ci.yaml
+    STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
+)
+
 size_limit_repo="$TMPDIR/size-limit-consumer"
 make_consumer_repo "$size_limit_repo"
 cat > "$size_limit_repo/.github/.shared-config.yaml" <<'YAML'
