@@ -61,6 +61,7 @@ Current groups:
 | `rust-crate` | publish-crate | repo publishes a Rust crate to crates.io (needs `secrets.CRATES_IO_TOKEN`) |
 | `release` | release-please | repo cuts versioned releases |
 | `oci-artifact` | publish-oci-artifact | repo publishes a generic OCI artifact bundle to GHCR on release |
+| `artifact-renovate` | renovate-artifact-published | repo runs targeted Renovate when a configured package or artifact is published |
 | `drift-check-rulesets` | drift-check-rulesets | one consumer per org watches its own ruleset state |
 
 ## Publication-triggered Renovate
@@ -81,17 +82,28 @@ artifacts:
       dependencies: [example/api]
 ```
 
-`component` matches the Release Please component. `publisher` identifies the
-completion signal: `docker`, `npm`, `pypi`, `cargo`, `helm`, `oci`, or `release`.
-Use `release` for Go modules because their Git tag is the published artifact.
-The other publishers notify only after their registry upload succeeds.
+`component` matches the Release Please component. `publisher` is a stable name
+for the workflow that proves publication completed. The canonical lanes use
+`docker`, `npm`, `pypi`, `cargo`, `helm`, `oci`, and `release`; bespoke package
+publishers may use another stable value without changing the resolver. `type`
+describes the artifact in the event payload and is likewise extensible. Use
+`release` for Go modules because their Git tag is the published artifact. A
+registry-backed publisher must notify only after its upload succeeds.
 
-The target repository must listen for the `artifact-published`
-`repository_dispatch` event and pass its dependency list to the reusable
-Renovate workflow's `dependency-names` input. Same-org dispatches can use the
-normal integration App. Cross-org targets require
+The target repository opts into the `artifact-renovate` group. Its generated
+workflow listens for the `artifact-published` `repository_dispatch`, validates
+the package names, and passes only those exact names to the reusable Renovate
+workflow. This receiver is independent of artifact type, so the same path
+handles container images, language packages, charts, modules, and bespoke
+registries. Same-org dispatches can use the normal integration App. Cross-org
+targets require
 `RENOVATE_DISPATCH_CLIENT_ID` and `RENOVATE_DISPATCH_APP_PRIVATE_KEY` for an App
 installed on the target repository.
+
+A bespoke publisher calls `notify_artifact_published.yaml` after its publish
+job succeeds and supplies the same `publisher` value used in its catalog. New
+package ecosystems therefore need a publishing workflow and catalog entry,
+but no changes to the event contract, resolver, or Renovate receiver.
 
 For the `swift` group, keep the consumer caller generic. The reusable workflow
 auto-detects a single `.xcodeproj` and then chooses the matching project-named

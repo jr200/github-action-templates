@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       publisher:
-        description: Publication lane (docker, npm, pypi, cargo, helm, oci, or release)
+        description: Stable publication lane identifier used by artifacts.yaml
         required: true
         type: string
       component:
