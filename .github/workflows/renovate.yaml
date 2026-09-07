@@ -219,6 +219,32 @@ jobs:
           echo "config-file=.renovate-out/targeted-config.json" >> "$GITHUB_OUTPUT"
           echo "Targeted dependencies: $dependencies"
 
+      - name: Pre-pull Renovate image
+        shell: bash
+        env:
+          RENOVATE_IMAGE: ${{ inputs.renovate-image || 'ghcr.io/renovatebot/renovate' }}
+          RENOVATE_VERSION: 43.275.0
+        run: |
+          set -euo pipefail
+          image="${RENOVATE_IMAGE}:${RENOVATE_VERSION}"
+          max_attempts=3
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "Pulling ${image} (attempt ${attempt}/${max_attempts})"
+            if docker pull "$image"; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "::error title=Renovate image pull failed::Could not pull ${image} after ${max_attempts} attempts."
+              exit 1
+            fi
+
+            delay=$((attempt * 10))
+            echo "::warning title=Renovate image pull retry::Attempt ${attempt} failed; retrying in ${delay}s."
+            sleep "$delay"
+          done
+
       - name: Self-hosted Renovate (pass 1)
         # renovatebot/github-action only publishes specific patch tags, no
         # floating majors. Pin to a known-good release; Renovate itself can
