@@ -32,6 +32,7 @@ permissions:
   pull-requests: write
   statuses: write
   actions: read
+  packages: read
 
 jobs:
   validate:
