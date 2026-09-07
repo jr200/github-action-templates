@@ -1,0 +1,83 @@
+# GENERATED/SHARED WORKFLOW: copied into consuming repos by sync-shared.
+# Do not edit in consuming repos; change jr200-labs/github-action-templates and sync.
+name: renovate-artifact-published
+
+on:
+  repository_dispatch:
+    types: [artifact-published]
+  workflow_dispatch:
+    inputs:
+      dependencies:
+        description: JSON array of exact Renovate dependency names
+        required: true
+        type: string
+      artifact-name:
+        description: Artifact name for the run summary
+        required: false
+        type: string
+        default: manual
+      artifact-version:
+        description: Artifact version for the run summary
+        required: false
+        type: string
+        default: manual
+
+concurrency:
+  group: renovate-artifact-${{ github.event.client_payload.artifact.name || inputs.artifact-name || 'manual' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  statuses: write
+  actions: read
+
+jobs:
+  validate:
+    runs-on: ${{ fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
+    outputs:
+      dependencies: ${{ steps.payload.outputs.dependencies }}
+    steps:
+      - id: payload
+        name: Validate artifact notification
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_DEPENDENCIES: ${{ toJSON(github.event.client_payload.dependencies) }}
+          MANUAL_DEPENDENCIES: ${{ inputs.dependencies }}
+          SOURCE_REPOSITORY: ${{ github.event.client_payload.source_repository || github.repository }}
+          ARTIFACT_NAME: ${{ github.event.client_payload.artifact.name || inputs.artifact-name }}
+          ARTIFACT_VERSION: ${{ github.event.client_payload.artifact.version || inputs.artifact-version }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = repository_dispatch ]; then
+            dependencies="$EVENT_DEPENDENCIES"
+          else
+            dependencies="$MANUAL_DEPENDENCIES"
+          fi
+          dependencies=$(jq -ce '
+            if type != "array" or length == 0 or length > 50 or
+               any(.[]; type != "string" or length == 0 or length > 200)
+            then error("dependencies must be a non-empty JSON array of at most 50 strings")
+            else unique
+            end
+          ' <<<"$dependencies")
+          echo "dependencies=$dependencies" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Publication-triggered Renovate"
+            echo
+            echo "- Source: \`$SOURCE_REPOSITORY\`"
+            echo "- Artifact: \`$ARTIFACT_NAME\`"
+            echo "- Version: \`$ARTIFACT_VERSION\`"
+            echo "- Dependencies: \`$dependencies\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  renovate:
+    needs: validate
+    uses: jr200-labs/github-action-templates/.github/workflows/renovate.yaml@master
+    with:
+      dependency-names: ${{ needs.validate.outputs.dependencies }}
+      repair-branches: false
+      renovate-image: ${{ vars.RENOVATE_IMAGE }}
+    secrets:
+      INTEGRATION_APP_PRIVATE_KEY: ${{ secrets.INTEGRATION_APP_PRIVATE_KEY }}

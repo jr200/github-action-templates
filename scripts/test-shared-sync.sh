@@ -108,6 +108,26 @@ make_consumer_repo "$consumer_repo"
     STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
 )
 
+artifact_repo="$TMPDIR/artifact-consumer"
+make_consumer_repo "$artifact_repo"
+cat > "$artifact_repo/.github/.shared-config.yaml" <<'YAML'
+ref: shared-v0.1.0
+workflows:
+  - hygiene
+  - artifact-renovate
+YAML
+(
+    cd "$artifact_repo"
+    git init -q
+    SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared
+    workflow=.github/workflows/renovate-artifact-published.yaml
+    test -f "$workflow"
+    yq -o=json '.' "$workflow" | jq -e '.on.repository_dispatch.types == ["artifact-published"]' >/dev/null
+    yq -o=json '.' "$workflow" | jq -e '.jobs.renovate.with."dependency-names" == "${{ needs.validate.outputs.dependencies }}"' >/dev/null
+    mv .github/workflows/ci.yaml .github/workflows/bespoke_ci.yaml
+    STRICT=1 SYNC_BASE_URL="file://$ROOT/consumers" ./scripts/sync-shared --check
+)
+
 size_limit_repo="$TMPDIR/size-limit-consumer"
 make_consumer_repo "$size_limit_repo"
 cat > "$size_limit_repo/.github/.shared-config.yaml" <<'YAML'

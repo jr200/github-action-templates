@@ -24,6 +24,14 @@ artifacts:
       repository: whengas/whengas-iac
       dependencies:
         - "@whengas/api"
+  - component: java-client
+    publisher: maven-central
+    type: maven
+    name: dev.whengas:api-client
+    renovate:
+      repository: whengas/whengas-iac
+      dependencies:
+        - dev.whengas:api-client
 YAML
 
 docker=$($root/scripts/resolve-artifact-renovate.sh "$tmpdir/artifacts.yaml" docker api)
@@ -33,6 +41,10 @@ jq -e '.include[0].dependencies == ["whengas/api"]' <<<"$docker" >/dev/null
 
 npm=$($root/scripts/resolve-artifact-renovate.sh "$tmpdir/artifacts.yaml" npm api)
 jq -e '.include[0].artifact_type == "npm"' <<<"$npm" >/dev/null
+
+custom=$($root/scripts/resolve-artifact-renovate.sh "$tmpdir/artifacts.yaml" maven-central java-client)
+jq -e '.include[0].artifact_type == "maven"' <<<"$custom" >/dev/null
+jq -e '.include[0].dependencies == ["dev.whengas:api-client"]' <<<"$custom" >/dev/null
 
 missing=$($root/scripts/resolve-artifact-renovate.sh "$tmpdir/missing.yaml" docker api)
 jq -e '.include == [{"configured":false}]' <<<"$missing" >/dev/null
