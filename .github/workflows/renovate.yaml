@@ -117,11 +117,9 @@ on:
 jobs:
   renovate:
     runs-on: ${{ inputs.runner || fromJSON(vars.RUNNER_PROFILES)[vars.RUNNER_PROFILE].default }}
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      packages: read
+    # Keep permissions on each pinned caller. Adding a permission here makes
+    # every older caller invalid immediately because this reusable tracks
+    # master and called workflows cannot elevate the caller's token.
     steps:
       - name: Mint App installation token
         id: app-token

@@ -37,8 +37,8 @@ if ! grep -q 'permission-workflows: write' "$workflow"; then
   exit 1
 fi
 
-if ! grep -q '^      packages: read$' "$workflow"; then
-  echo "lint-renovate-workflow-token: reusable Renovate job must request packages:read" >&2
+if grep -q '^    permissions:' "$workflow"; then
+  echo "lint-renovate-workflow-token: reusable Renovate jobs must inherit permissions from pinned callers" >&2
   exit 1
 fi
 
