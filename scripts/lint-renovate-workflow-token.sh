@@ -47,11 +47,14 @@ if [ "$(grep -c 'RENOVATE_HOST_RULES:.*github.token' "$workflow")" -ne 2 ]; then
   exit 1
 fi
 
-caller="consumers/workflows/renovate.yaml"
-if [ ! -f "$caller" ] || ! grep -q '^  packages: read$' "$caller"; then
-  echo "lint-renovate-workflow-token: canonical caller must grant packages:read" >&2
-  exit 1
-fi
+while IFS= read -r caller; do
+  if ! grep -q '^  packages: read$' "$caller"; then
+    echo "lint-renovate-workflow-token: Renovate caller must grant packages:read: $caller" >&2
+    exit 1
+  fi
+done < <(grep -rlF \
+  'uses: jr200-labs/github-action-templates/.github/workflows/renovate.yaml@master' \
+  consumers/workflows)
 
 mint_line="$(grep -n 'name: Mint App installation token' "$workflow" | head -n1 | cut -d: -f1 || true)"
 checkout_line="$(grep -n 'name: Checkout$' "$workflow" | head -n1 | cut -d: -f1 || true)"
